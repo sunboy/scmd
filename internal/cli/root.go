@@ -82,6 +82,10 @@ func init() {
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(backendsCmd)
 	rootCmd.AddCommand(repoCmd)
+	rootCmd.AddCommand(registryCmd)
+	rootCmd.AddCommand(updateCmd)
+	rootCmd.AddCommand(lockCmd)
+	rootCmd.AddCommand(cacheCmd)
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }

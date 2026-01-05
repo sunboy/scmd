@@ -46,19 +46,95 @@ type Command struct {
 
 // CommandSpec is the full command specification from a YAML file
 type CommandSpec struct {
-	Name        string            `yaml:"name"`
-	Version     string            `yaml:"version"`
-	Description string            `yaml:"description"`
-	Usage       string            `yaml:"usage"`
-	Aliases     []string          `yaml:"aliases,omitempty"`
-	Category    string            `yaml:"category,omitempty"`
-	Author      string            `yaml:"author,omitempty"`
-	Args        []ArgSpec         `yaml:"args,omitempty"`
-	Flags       []FlagSpec        `yaml:"flags,omitempty"`
-	Prompt      PromptSpec        `yaml:"prompt"`
-	Model       ModelSpec         `yaml:"model,omitempty"`
-	Examples    []string          `yaml:"examples,omitempty"`
-	Metadata    map[string]string `yaml:"metadata,omitempty"`
+	Name        string            `yaml:"name" json:"name"`
+	Version     string            `yaml:"version" json:"version"`
+	Description string            `yaml:"description" json:"description"`
+	Usage       string            `yaml:"usage" json:"usage"`
+	Aliases     []string          `yaml:"aliases,omitempty" json:"aliases,omitempty"`
+	Category    string            `yaml:"category,omitempty" json:"category,omitempty"`
+	Author      string            `yaml:"author,omitempty" json:"author,omitempty"`
+	License     string            `yaml:"license,omitempty" json:"license,omitempty"`
+	Homepage    string            `yaml:"homepage,omitempty" json:"homepage,omitempty"`
+	Repository  string            `yaml:"repository,omitempty" json:"repository,omitempty"`
+	Tags        []string          `yaml:"tags,omitempty" json:"tags,omitempty"`
+	Args        []ArgSpec         `yaml:"args,omitempty" json:"args,omitempty"`
+	Flags       []FlagSpec        `yaml:"flags,omitempty" json:"flags,omitempty"`
+	Prompt      PromptSpec        `yaml:"prompt" json:"prompt"`
+	Model       ModelSpec         `yaml:"model,omitempty" json:"model,omitempty"`
+	Examples    []string          `yaml:"examples,omitempty" json:"examples,omitempty"`
+	Metadata    map[string]string `yaml:"metadata,omitempty" json:"metadata,omitempty"`
+
+	// Enhanced features
+	Dependencies []Dependency   `yaml:"dependencies,omitempty" json:"dependencies,omitempty"`
+	Compose      *ComposeSpec   `yaml:"compose,omitempty" json:"compose,omitempty"`
+	Hooks        *HooksSpec     `yaml:"hooks,omitempty" json:"hooks,omitempty"`
+	Inputs       []InputSpec    `yaml:"inputs,omitempty" json:"inputs,omitempty"`
+	Outputs      *OutputSpec    `yaml:"outputs,omitempty" json:"outputs,omitempty"`
+	Context      *ContextSpec   `yaml:"context,omitempty" json:"context,omitempty"`
+}
+
+// Dependency defines a command dependency
+type Dependency struct {
+	Command     string `yaml:"command" json:"command"`                           // e.g., "official/explain"
+	Version     string `yaml:"version,omitempty" json:"version,omitempty"`       // e.g., ">=1.0.0"
+	Optional    bool   `yaml:"optional,omitempty" json:"optional,omitempty"`
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+}
+
+// ComposeSpec defines command composition/chaining
+type ComposeSpec struct {
+	// Pipeline chains multiple commands together
+	Pipeline []PipelineStep `yaml:"pipeline,omitempty" json:"pipeline,omitempty"`
+	// Parallel runs commands in parallel and merges results
+	Parallel []string `yaml:"parallel,omitempty" json:"parallel,omitempty"`
+	// Fallback tries commands in order until one succeeds
+	Fallback []string `yaml:"fallback,omitempty" json:"fallback,omitempty"`
+}
+
+// PipelineStep is a step in a command pipeline
+type PipelineStep struct {
+	Command   string            `yaml:"command" json:"command"`
+	Args      map[string]string `yaml:"args,omitempty" json:"args,omitempty"`
+	Transform string            `yaml:"transform,omitempty" json:"transform,omitempty"` // jq-like transform
+	OnError   string            `yaml:"on_error,omitempty" json:"on_error,omitempty"`   // continue, stop, fallback
+}
+
+// HooksSpec defines pre/post execution hooks
+type HooksSpec struct {
+	Pre  []HookAction `yaml:"pre,omitempty" json:"pre,omitempty"`
+	Post []HookAction `yaml:"post,omitempty" json:"post,omitempty"`
+}
+
+// HookAction is a hook action to run
+type HookAction struct {
+	Shell   string `yaml:"shell,omitempty" json:"shell,omitempty"`     // Shell command to run
+	Command string `yaml:"command,omitempty" json:"command,omitempty"` // Another scmd command
+	If      string `yaml:"if,omitempty" json:"if,omitempty"`           // Condition
+}
+
+// InputSpec defines structured input (like GitHub Actions inputs)
+type InputSpec struct {
+	Name        string   `yaml:"name" json:"name"`
+	Description string   `yaml:"description" json:"description"`
+	Required    bool     `yaml:"required,omitempty" json:"required,omitempty"`
+	Default     string   `yaml:"default,omitempty" json:"default,omitempty"`
+	Type        string   `yaml:"type,omitempty" json:"type,omitempty"` // string, file, choice, multiline
+	Choices     []string `yaml:"choices,omitempty" json:"choices,omitempty"`
+}
+
+// OutputSpec defines command output structure
+type OutputSpec struct {
+	Format   string            `yaml:"format,omitempty" json:"format,omitempty"`     // text, json, markdown
+	Schema   map[string]string `yaml:"schema,omitempty" json:"schema,omitempty"`     // JSON schema hints
+	Template string            `yaml:"template,omitempty" json:"template,omitempty"` // Output template
+}
+
+// ContextSpec defines context requirements
+type ContextSpec struct {
+	Files     []string `yaml:"files,omitempty" json:"files,omitempty"`         // File patterns to include
+	Git       bool     `yaml:"git,omitempty" json:"git,omitempty"`             // Include git context
+	Env       []string `yaml:"env,omitempty" json:"env,omitempty"`             // Environment variables
+	MaxTokens int      `yaml:"max_tokens,omitempty" json:"max_tokens,omitempty"` // Max context tokens
 }
 
 // ArgSpec defines a command argument
