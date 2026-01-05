@@ -1,0 +1,30 @@
+name: git-commit
+version: "1.0.0"
+description: Generate git commit messages from diffs
+usage: "git-commit"
+category: git
+author: scmd team
+
+prompt:
+  system: |
+    You are a git commit message expert. Generate clear, concise commit messages
+    following conventional commits format (feat:, fix:, docs:, etc.).
+    Keep the first line under 72 characters.
+  template: |
+    Generate a git commit message for the following diff:
+
+    {{.stdin}}
+
+    Requirements:
+    - Use conventional commits format (feat:, fix:, docs:, refactor:, etc.)
+    - First line should be under 72 characters
+    - Include a brief body if needed to explain the "why"
+    - Be specific but concise
+
+model:
+  temperature: 0.3
+  max_tokens: 256
+
+examples:
+  - "git diff | scmd git-commit"
+  - "git diff --staged | scmd git-commit"

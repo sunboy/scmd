@@ -1,0 +1,43 @@
+name: summarize
+version: "1.0.0"
+description: Summarize text or documents
+usage: "summarize [length]"
+aliases:
+  - sum
+  - tldr
+category: text
+author: scmd team
+
+args:
+  - name: length
+    description: Summary length (short, medium, long)
+    required: false
+    default: short
+
+flags:
+  - name: bullets
+    short: b
+    description: Output as bullet points
+    default: "false"
+
+prompt:
+  system: |
+    You are an expert summarizer. Create clear, accurate summaries
+    that capture the key points without losing important details.
+  template: |
+    Summarize the following text in a {{.length}} format:
+
+    {{.stdin}}
+
+    {{if eq .bullets "true"}}
+    Format the summary as bullet points.
+    {{end}}
+
+model:
+  temperature: 0.3
+  max_tokens: 512
+
+examples:
+  - "cat article.md | scmd summarize"
+  - "cat document.txt | scmd summarize medium"
+  - "curl https://example.com/page | scmd summarize -b"
