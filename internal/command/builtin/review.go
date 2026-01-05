@@ -1,0 +1,146 @@
+package builtin
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/scmd/scmd/internal/backend"
+	"github.com/scmd/scmd/internal/command"
+)
+
+// ReviewCommand implements /review
+type ReviewCommand struct{}
+
+// NewReviewCommand creates a new review command
+func NewReviewCommand() *ReviewCommand {
+	return &ReviewCommand{}
+}
+
+// Name returns the command name
+func (c *ReviewCommand) Name() string { return "review" }
+
+// Aliases returns command aliases
+func (c *ReviewCommand) Aliases() []string { return []string{"r"} }
+
+// Description returns the command description
+func (c *ReviewCommand) Description() string { return "Review code for issues and improvements" }
+
+// Usage returns usage information
+func (c *ReviewCommand) Usage() string { return "/review <file> [options]" }
+
+// Category returns the command category
+func (c *ReviewCommand) Category() command.Category { return command.CategoryCode }
+
+// RequiresBackend returns true
+func (c *ReviewCommand) RequiresBackend() bool { return true }
+
+// Examples returns example usages
+func (c *ReviewCommand) Examples() []string {
+	return []string{
+		"/review main.go",
+		"git diff | scmd review",
+		"/review src/ --focus security",
+	}
+}
+
+// Validate validates arguments
+func (c *ReviewCommand) Validate(args *command.Args) error {
+	if len(args.Positional) == 0 && args.Options["stdin"] == "" {
+		return fmt.Errorf("provide a file or pipe input")
+	}
+	return nil
+}
+
+// Execute runs the review command
+func (c *ReviewCommand) Execute(
+	ctx context.Context,
+	args *command.Args,
+	execCtx *command.ExecContext,
+) (*command.Result, error) {
+	var content string
+	var subject string
+
+	// Check for piped input (e.g., git diff)
+	if stdin, ok := args.Options["stdin"]; ok && stdin != "" {
+		content = stdin
+		subject = "diff"
+	} else if len(args.Positional) > 0 {
+		target := args.Positional[0]
+
+		if isFile(target) {
+			data, err := os.ReadFile(target)
+			if err != nil {
+				return command.NewErrorResult(
+					fmt.Sprintf("cannot read file: %v", err),
+					"Check the file path",
+				), nil
+			}
+			content = string(data)
+			subject = filepath.Base(target)
+		} else {
+			return command.NewErrorResult(
+				fmt.Sprintf("file not found: %s", target),
+				"Check the file path",
+			), nil
+		}
+	}
+
+	// Get focus area if specified
+	focus := args.GetOption("focus")
+
+	// Build prompt
+	prompt := buildReviewPrompt(content, subject, focus)
+
+	if execCtx.Backend == nil {
+		return command.NewErrorResult(
+			"no backend available",
+			"Configure a backend with 'scmd config'",
+		), nil
+	}
+
+	stop := execCtx.UI.Spinner("Reviewing")
+	defer stop()
+
+	req := &backend.CompletionRequest{
+		Prompt:      prompt,
+		MaxTokens:   4096,
+		Temperature: 0.3,
+		SystemPrompt: `You are an expert code reviewer. Analyze code for:
+- Bugs and potential issues
+- Security vulnerabilities
+- Performance concerns
+- Code quality and readability
+- Best practices
+
+Provide constructive feedback with specific suggestions.
+Format your response in markdown with sections for each category.`,
+	}
+
+	resp, err := execCtx.Backend.Complete(ctx, req)
+	if err != nil {
+		return command.NewErrorResult(
+			fmt.Sprintf("backend error: %v", err),
+		), nil
+	}
+
+	return command.NewResult(resp.Content), nil
+}
+
+func buildReviewPrompt(content, subject, focus string) string {
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("Please review the following code from %s:\n\n", subject))
+
+	if focus != "" {
+		sb.WriteString(fmt.Sprintf("Focus especially on: %s\n\n", focus))
+	}
+
+	sb.WriteString("```\n")
+	sb.WriteString(content)
+	sb.WriteString("\n```")
+
+	return sb.String()
+}
