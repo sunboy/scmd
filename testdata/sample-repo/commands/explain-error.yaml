@@ -1,0 +1,42 @@
+name: explain-error
+version: "1.0.0"
+description: Explain error messages and suggest fixes
+usage: "explain-error <error>"
+category: debug
+author: scmd team
+
+args:
+  - name: error
+    description: The error message or code
+    required: false
+
+prompt:
+  system: |
+    You are a debugging expert. Help users understand error messages
+    and provide actionable solutions. Be specific and practical.
+  template: |
+    {{if .stdin}}
+    Explain this error and suggest how to fix it:
+
+    {{.stdin}}
+    {{else if .error}}
+    Explain this error and suggest how to fix it:
+
+    {{.error}}
+    {{else}}
+    Please provide an error message to explain.
+    {{end}}
+
+    Provide:
+    1. A brief explanation of what the error means
+    2. The most likely cause
+    3. Step-by-step fix instructions
+    4. How to prevent it in the future
+
+model:
+  temperature: 0.4
+  max_tokens: 1024
+
+examples:
+  - "scmd explain-error 'undefined is not a function'"
+  - "npm run build 2>&1 | scmd explain-error"

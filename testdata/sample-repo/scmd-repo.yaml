@@ -1,0 +1,35 @@
+name: sample-repo
+version: "1.0.0"
+description: Sample scmd command repository for testing
+author: scmd team
+homepage: https://github.com/scmd/sample-repo
+
+commands:
+  - name: git-commit
+    description: Generate git commit messages from diffs
+    usage: "git-commit"
+    category: git
+    file: commands/git-commit.yaml
+
+  - name: explain-error
+    description: Explain error messages and suggest fixes
+    usage: "explain-error <error>"
+    category: debug
+    file: commands/explain-error.yaml
+
+  - name: summarize
+    description: Summarize text or documents
+    usage: "summarize [length]"
+    aliases:
+      - sum
+      - tldr
+    category: text
+    file: commands/summarize.yaml
+
+  - name: code-review
+    description: Review code and suggest improvements
+    usage: "code-review [file]"
+    aliases:
+      - cr
+    category: code
+    file: commands/code-review.yaml

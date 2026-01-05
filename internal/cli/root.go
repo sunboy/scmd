@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/scmd/scmd/internal/command"
 	"github.com/scmd/scmd/internal/command/builtin"
 	"github.com/scmd/scmd/internal/config"
+	"github.com/scmd/scmd/internal/repos"
 	"github.com/scmd/scmd/pkg/version"
 )
 
@@ -79,6 +81,7 @@ func init() {
 	rootCmd.AddCommand(reviewCmd)
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(backendsCmd)
+	rootCmd.AddCommand(repoCmd)
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
@@ -273,6 +276,14 @@ func preRun(_ *cobra.Command, _ []string) error {
 	if err := builtin.RegisterAll(cmdRegistry); err != nil {
 		return fmt.Errorf("register commands: %w", err)
 	}
+
+	// Load plugin commands from installed repos
+	dataDir := getDataDir()
+	mgr := repos.NewManager(dataDir)
+	_ = mgr.Load() // Ignore error, repos may not exist yet
+
+	loader := repos.NewLoader(mgr, filepath.Join(dataDir, "commands"))
+	_ = loader.RegisterAll(cmdRegistry) // Ignore errors, commands may not exist yet
 
 	return nil
 }

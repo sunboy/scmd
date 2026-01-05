@@ -1,0 +1,66 @@
+name: code-review
+version: "1.0.0"
+description: Review code and suggest improvements
+usage: "code-review [file]"
+aliases:
+  - cr
+category: code
+author: scmd team
+
+args:
+  - name: file
+    description: File to review (optional if piping)
+    required: false
+
+flags:
+  - name: focus
+    short: f
+    description: "Focus area: security, performance, style, all"
+    default: all
+  - name: severity
+    short: s
+    description: "Min severity: info, warning, error"
+    default: info
+
+prompt:
+  system: |
+    You are an expert code reviewer. Provide constructive, actionable feedback
+    focusing on code quality, best practices, and potential issues.
+    Be specific and explain the reasoning behind suggestions.
+  template: |
+    Review the following code:
+
+    {{if .stdin}}
+    {{.stdin}}
+    {{else}}
+    {{.file}}
+    {{end}}
+
+    Focus: {{.focus}}
+    Minimum severity: {{.severity}}
+
+    Provide feedback on:
+    {{if or (eq .focus "all") (eq .focus "security")}}
+    - Security vulnerabilities and risks
+    {{end}}
+    {{if or (eq .focus "all") (eq .focus "performance")}}
+    - Performance optimizations
+    {{end}}
+    {{if or (eq .focus "all") (eq .focus "style")}}
+    - Code style and readability
+    {{end}}
+    - Best practices and patterns
+    - Potential bugs or edge cases
+
+    Format each issue as:
+    [SEVERITY] Description
+    Suggestion: How to fix
+
+model:
+  temperature: 0.4
+  max_tokens: 2048
+
+examples:
+  - "cat main.go | scmd code-review"
+  - "scmd code-review main.py -f security"
+  - "git diff | scmd cr -s warning"
