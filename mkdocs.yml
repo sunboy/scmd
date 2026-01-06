@@ -118,6 +118,7 @@ nav:
       - LLM Backends: user-guide/backends.md
       - Model Management: user-guide/models.md
       - Repositories: user-guide/repositories.md
+      - Safety Features: user-guide/safety-features.md
       - Configuration: user-guide/configuration.md
       - CLI Reference: user-guide/cli-reference.md
       - Troubleshooting: user-guide/troubleshooting.md
@@ -128,6 +129,7 @@ nav:
       - Tool Calling: command-authoring/tool-calling.md
       - Hooks: command-authoring/hooks.md
       - Composition: command-authoring/composition.md
+      - Automatic Context: command-authoring/automatic-context.md
       - Dependencies: command-authoring/dependencies.md
       - Testing Commands: command-authoring/testing-commands.md
       - Best Practices: command-authoring/best-practices.md
