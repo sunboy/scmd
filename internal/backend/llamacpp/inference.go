@@ -125,7 +125,7 @@ func (s *Server) Complete(ctx context.Context, prompt string, req *backend.Compl
 	url := fmt.Sprintf("http://127.0.0.1:%d/completion", s.port)
 
 	// Build request body
-	body := map[string]interface{}{
+	reqBody := map[string]interface{}{
 		"prompt":      prompt,
 		"n_predict":   req.MaxTokens,
 		"temperature": req.Temperature,
@@ -134,13 +134,13 @@ func (s *Server) Complete(ctx context.Context, prompt string, req *backend.Compl
 	}
 
 	if req.MaxTokens == 0 {
-		body["n_predict"] = 2048
+		reqBody["n_predict"] = 2048
 	}
 	if req.Temperature == 0 {
-		body["temperature"] = 0.7
+		reqBody["temperature"] = 0.7
 	}
 
-	jsonBody, err := json.Marshal(body)
+	jsonBody, err := json.Marshal(reqBody)
 	if err != nil {
 		return "", err
 	}
@@ -157,20 +157,44 @@ func (s *Server) Complete(ctx context.Context, prompt string, req *backend.Compl
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("server error: %s", string(body))
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read response: %w", err)
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("server error (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	// Parse response - llama-server returns {"content": "...", ...}
 	var result struct {
 		Content string `json:"content"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return "", fmt.Errorf("parse response: %w\nRaw: %s", err, string(respBody))
 	}
 
-	return strings.TrimSpace(result.Content), nil
+	content := strings.TrimSpace(result.Content)
+	if content == "" {
+		// Check if there was an error in the response
+		var errResult struct {
+			Error string `json:"error"`
+		}
+		if json.Unmarshal(respBody, &errResult) == nil && errResult.Error != "" {
+			return "", fmt.Errorf("llama-server: %s", errResult.Error)
+		}
+		return "", fmt.Errorf("empty response from model.\nPrompt was: %s...\nResponse: %s", truncate(prompt, 100), string(respBody))
+	}
+
+	return content, nil
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
 }
 
 // findLlamaServer finds the llama-server binary
@@ -219,7 +243,7 @@ func (b *Backend) runServerInference(ctx context.Context, prompt string, req *ba
 	// Use existing server URL
 	url := b.serverURL + "/completion"
 
-	body := map[string]interface{}{
+	reqBody := map[string]interface{}{
 		"prompt":      prompt,
 		"n_predict":   req.MaxTokens,
 		"temperature": req.Temperature,
@@ -228,13 +252,13 @@ func (b *Backend) runServerInference(ctx context.Context, prompt string, req *ba
 	}
 
 	if req.MaxTokens == 0 {
-		body["n_predict"] = 2048
+		reqBody["n_predict"] = 2048
 	}
 	if req.Temperature == 0 {
-		body["temperature"] = 0.7
+		reqBody["temperature"] = 0.7
 	}
 
-	jsonBody, err := json.Marshal(body)
+	jsonBody, err := json.Marshal(reqBody)
 	if err != nil {
 		return "", err
 	}
@@ -251,14 +275,28 @@ func (b *Backend) runServerInference(ctx context.Context, prompt string, req *ba
 	}
 	defer resp.Body.Close()
 
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("server error (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
 	var result struct {
 		Content string `json:"content"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return "", fmt.Errorf("parse response: %w\nRaw: %s", err, string(respBody))
 	}
 
-	return strings.TrimSpace(result.Content), nil
+	content := strings.TrimSpace(result.Content)
+	if content == "" {
+		return "", fmt.Errorf("empty response from server.\nResponse: %s", string(respBody))
+	}
+
+	return content, nil
 }
 
 // runCGOInference uses CGO bindings for direct inference
