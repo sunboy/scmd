@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/scmd/scmd/internal/backend"
+	"github.com/scmd/scmd/internal/preview"
 )
 
 // ShellTool executes shell commands
@@ -84,6 +85,56 @@ func (t *ShellTool) Execute(ctx context.Context, params map[string]interface{}) 
 			Success: false,
 			Error:   fmt.Sprintf("command '%s' is not allowed for security reasons", baseCmd),
 		}, nil
+	}
+
+	// Detect if command is destructive and show preview
+	detectResult := preview.Detect(cmdStr)
+	if detectResult.IsDestructive && detectResult.HighestSeverity >= preview.SeverityMedium {
+		// Use preview buffer for interactive review
+		buffer := preview.NewBuffer(cmdStr)
+		action, finalCmd, err := buffer.Show()
+		if err != nil {
+			return &Result{
+				Success: false,
+				Error:   fmt.Sprintf("preview error: %v", err),
+			}, nil
+		}
+
+		switch action {
+		case preview.ActionQuit:
+			return &Result{
+				Success: false,
+				Output:  "Command cancelled by user",
+			}, nil
+
+		case preview.ActionDryRun:
+			// Dry run - show what would happen without executing
+			return &Result{
+				Success: true,
+				Output:  fmt.Sprintf("[DRY RUN] Would execute: %s\n\nNo actual changes made.", finalCmd),
+			}, nil
+
+		case preview.ActionEdit, preview.ActionExecute:
+			// Update command string to potentially edited version
+			cmdStr = finalCmd
+			parts = strings.Fields(cmdStr)
+			if len(parts) == 0 {
+				return &Result{
+					Success: false,
+					Error:   "edited command is empty",
+				}, nil
+			}
+
+			// Re-check if edited command is allowed
+			baseCmd = parts[0]
+			if !t.isAllowed(baseCmd) {
+				return &Result{
+					Success: false,
+					Error:   fmt.Sprintf("edited command '%s' is not allowed for security reasons", baseCmd),
+				}, nil
+			}
+			// Continue to execution below
+		}
 	}
 
 	// Create command with timeout

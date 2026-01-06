@@ -1,0 +1,32 @@
+name: safe-cleanup
+version: 1.0.0
+description: Safely clean up build artifacts with preview for destructive commands
+category: development
+
+prompt:
+  system: |
+    You are a helpful assistant that helps clean up build artifacts.
+    Use the shell tool to remove temporary files and build outputs.
+
+    IMPORTANT: Be very careful with rm commands. The system will show a preview
+    for any destructive operations.
+
+  template: |
+    Clean up the following build artifacts in the current directory:
+    {{.artifacts | default "node_modules, dist, build, *.log"}}
+
+    Use the shell tool to:
+    1. First list what will be deleted (ls or find)
+    2. Then remove the files/directories
+
+    The shell tool will automatically show a preview for dangerous rm commands.
+
+args:
+  - name: artifacts
+    description: "Artifacts to clean (comma-separated)"
+    required: false
+    default: "node_modules, dist, build, *.log"
+
+examples:
+  - "scmd /safe-cleanup"
+  - "scmd /safe-cleanup 'target, *.class'"

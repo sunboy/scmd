@@ -10,6 +10,7 @@ import (
 
 	"github.com/scmd/scmd/internal/backend"
 	"github.com/scmd/scmd/internal/command"
+	contextpkg "github.com/scmd/scmd/internal/context"
 	"github.com/scmd/scmd/internal/tools"
 )
 
@@ -150,6 +151,33 @@ func (c *PluginCommand) Execute(ctx context.Context, args *command.Args, execCtx
 				Success: false,
 				Error:   fmt.Sprintf("system template error: %v", err),
 			}, nil
+		}
+	}
+
+	// Gather automatic context if specified
+	if c.spec.Context != nil {
+		gatherer := contextpkg.NewGatherer("") // Use current working directory
+
+		// Convert repos.ContextSpec to contextpkg.ContextSpec
+		contextSpec := &contextpkg.ContextSpec{
+			Files:     c.spec.Context.Files,
+			Git:       c.spec.Context.Git,
+			Env:       c.spec.Context.Env,
+			MaxTokens: c.spec.Context.MaxTokens,
+		}
+
+		autoContext, err := gatherer.Gather(ctx, contextSpec)
+		if err != nil {
+			// Log warning but don't fail - context is supplementary
+			if execCtx.UI != nil {
+				execCtx.UI.WriteError(fmt.Sprintf("Warning: Failed to gather context: %v", err))
+			}
+		} else if autoContext != nil {
+			// Prepend context to prompt
+			contextStr := autoContext.Format()
+			if contextStr != "" {
+				prompt = contextStr + "\n---\n\n" + prompt
+			}
 		}
 	}
 
