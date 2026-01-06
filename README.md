@@ -1,64 +1,157 @@
 # scmd
 
-**AI-powered slash commands for any terminal.**
+**AI-powered slash commands for any terminal. Works offline by default.**
 
-scmd brings the power of LLM-based slash commands to your command line. Type `/gc` to generate commit messages, `/explain` to understand code, or install new commands from community repositories.
+scmd brings the power of LLM-based slash commands to your command line. Works offline by default with llama.cpp and Qwen models, or connect to Ollama, OpenAI, and more. Type `/gc` to generate commit messages, `/explain` to understand code, or install new commands from community repositories.
 
 ```bash
-# With shell integration, use real slash commands:
-/gc                     # Generate commit message from staged changes
-/explain main.go        # Explain code
-/review                 # Review code for issues
-git diff | /sum         # Summarize changes
+# Works immediately - no API keys or setup required:
+./scmd /explain main.go        # Explain code
+./scmd /gc                      # Generate commit message from staged changes
+./scmd /review                  # Review code for issues
+git diff | ./scmd /sum          # Summarize changes
 
 # Or use the scmd command directly:
 cat main.go | scmd explain
-git diff | scmd git-commit
+git diff | scmd review
 ```
 
 ## Features
 
-- **Real Slash Commands** - Type `/command` directly in your terminal
+- **Offline-First** - llama.cpp with local Qwen models, no API keys required
+- **Auto-Download Models** - Qwen3-4B downloads automatically on first use (~2.6GB)
+- **Real Slash Commands** - Type `/command` directly (with or without shell integration)
 - **Repository System** - Install commands from community repos or create your own
-- **Multiple LLM Backends** - Ollama (local), OpenAI, Together.ai, Groq
+- **Multiple LLM Backends** - llama.cpp (default), Ollama, OpenAI, Together.ai, Groq
 - **Command Composition** - Chain commands in pipelines, run in parallel, or use fallbacks
 - **Shell Integration** - Bash, Zsh, and Fish support with tab completion
-- **Offline Support** - Local caching for commands and manifests
+- **Local Caching** - Commands and manifests cached locally
 - **Lockfiles** - Reproducible installations for teams
 
 ## Installation
 
+### Quick Start (Recommended)
+
 ```bash
-# Build from source
+# Clone and build
 git clone https://github.com/scmd/scmd
 cd scmd
-make build
+go build -o scmd ./cmd/scmd
 
-# Or with Go
-go install github.com/scmd/scmd/cmd/scmd@latest
+# Install llama-server for inference
+# macOS:
+brew install llama.cpp
+
+# Linux:
+# Build from source: https://github.com/ggerganov/llama.cpp
+
+# First run auto-downloads qwen3-4b model (~2.6GB)
+./scmd /explain "what is a goroutine"
 ```
+
+### Install from Source
+
+```bash
+# With Go
+go install github.com/scmd/scmd/cmd/scmd@latest
+
+# Then install llama-server
+brew install llama.cpp  # macOS
+```
+
+### Verify Installation
+
+```bash
+# Check backends
+./scmd backends
+
+# List models
+./scmd models list
+```
+
+## Model Management
+
+scmd uses llama.cpp with efficient Qwen models for offline inference. Models are downloaded automatically on first use.
+
+### Available Models
+
+```bash
+# List available models
+scmd models list
+
+# Output:
+# NAME          SIZE      STATUS          DESCRIPTION
+# qwen2.5-3b    1.9 GB    not downloaded  Qwen2.5 3B - Good balance
+# qwen2.5-1.5b  940 MB    not downloaded  Qwen2.5 1.5B - Fast and lightweight
+# qwen2.5-0.5b  379 MB    not downloaded  Qwen2.5 0.5B - Smallest, fastest
+# qwen2.5-7b    4.4 GB    not downloaded  Qwen2.5 7B - Best quality
+# qwen3-4b      2.5 GB    ✓ ready         Qwen3 4B - Default (tool calling)
+```
+
+### Managing Models
+
+```bash
+# Download a specific model
+scmd models pull qwen2.5-3b
+
+# Show model info
+scmd models info qwen3-4b
+
+# Set default model
+scmd models default qwen2.5-3b
+
+# Remove a downloaded model
+scmd models remove qwen2.5-7b
+```
+
+Models are stored in `~/.scmd/models/` and use GPU acceleration when available (Metal on macOS, CUDA on Linux).
 
 ## Quick Start
 
 ```bash
-# List available backends
-scmd backends
-
-# Explain some code
+# Explain code (model downloads on first run)
 cat myfile.go | scmd explain
+
+# Review code for issues
+git diff | scmd review
+
+# Generate commit message
+git diff --staged | scmd /gc
 
 # Use with inline prompt
 echo "SELECT * FROM users" | scmd -p "optimize this SQL query"
 
 # Save output to file
 git diff | scmd review -o review.md
+
+# Use specific backend/model
+scmd -b openai -m gpt-4 explain main.go
 ```
 
 ## Slash Commands
 
-The core feature of scmd is real slash commands in your terminal.
+The core feature of scmd is slash commands that work directly in your terminal.
 
-### Setup Shell Integration
+### Direct Usage (No Setup Required)
+
+You can use slash commands immediately without any shell integration:
+
+```bash
+# Direct invocation
+./scmd /explain main.go
+./scmd /review code.py
+./scmd /gc
+./scmd /e "what are channels?"
+
+# With pipes
+cat error.log | ./scmd /fix
+git diff | ./scmd /gc
+curl api.com/data | ./scmd /sum
+```
+
+### Setup Shell Integration (Optional)
+
+For even better ergonomics, set up shell integration to use `/command` without the `./scmd` prefix:
 
 ```bash
 # For Bash/Zsh - add to your ~/.bashrc or ~/.zshrc:
@@ -68,15 +161,13 @@ eval "$(scmd slash init bash)"
 scmd slash init fish | source
 ```
 
-### Using Slash Commands
-
 After setup, use slash commands directly:
 
 ```bash
 /explain main.go           # Explain code
-/gc                        # Generate commit message (alias for git-commit)
+/gc                        # Generate commit message
 /review                    # Review code
-/sum                       # Summarize (alias for summarize)
+/sum article.md            # Summarize
 /fix                       # Explain errors
 
 # Pipe input to commands
@@ -116,13 +207,13 @@ scmd slash interactive
 
 ## Repository System
 
-scmd's killer feature is its repository-based command distribution. Think Homebrew taps, but for AI prompts.
+scmd's repository system lets you distribute and install AI commands. Think Homebrew taps, but for AI prompts.
 
 ### Installing Commands
 
 ```bash
 # Add a repository
-scmd repo add community https://github.com/scmd-community/commands/raw/main
+scmd repo add community https://raw.githubusercontent.com/scmd-community/commands/main
 
 # Search for commands
 scmd repo search git
@@ -258,14 +349,26 @@ scmd update --all
 
 ## LLM Backends
 
-scmd supports multiple LLM backends:
+scmd supports multiple LLM backends. llama.cpp is used by default for offline inference.
 
-| Backend | Local | Free | Setup |
-|---------|-------|------|-------|
-| Ollama | Yes | Yes | `ollama serve` |
-| OpenAI | No | No | `OPENAI_API_KEY` |
-| Together.ai | No | Free tier | `TOGETHER_API_KEY` |
-| Groq | No | Free tier | `GROQ_API_KEY` |
+| Backend | Local | Free | Default | Setup |
+|---------|-------|------|---------|-------|
+| **llama.cpp** | ✓ | ✓ | ✓ | `brew install llama.cpp` |
+| **Ollama** | ✓ | ✓ | | `ollama serve` |
+| **OpenAI** | | | | `export OPENAI_API_KEY=...` |
+| **Together.ai** | | Free tier | | `export TOGETHER_API_KEY=...` |
+| **Groq** | | Free tier | | `export GROQ_API_KEY=...` |
+
+### Backend Priority
+
+Backends are tried in this order:
+1. **llama.cpp** - Local, offline, no setup required (default)
+2. **Ollama** - Local, if running
+3. **OpenAI** - If API key set
+4. **Together.ai** - If API key set
+5. **Groq** - If API key set
+
+### Using Backends
 
 ```bash
 # Use specific backend
@@ -276,6 +379,11 @@ scmd -b openai -m gpt-4 review code.py
 
 # List available backends
 scmd backends
+
+# Example output:
+#   ✓ llamacpp     qwen3-4b
+#   ✗ ollama       qwen2.5-coder-1.5b
+#   ✗ openai       (not configured)
 ```
 
 ## Creating a Repository
@@ -313,10 +421,12 @@ scmd repo add myrepo https://raw.githubusercontent.com/you/my-commands/main
 Configuration is stored in `~/.scmd/config.yaml`:
 
 ```yaml
-default_backend: ollama
-default_model: llama3.2
+default_backend: llamacpp
+default_model: qwen3-4b
 
 backends:
+  llamacpp:
+    model: qwen3-4b
   ollama:
     host: http://localhost:11434
   openai:
@@ -337,6 +447,13 @@ Commands:
   review      Review code for issues
   config      View/modify configuration
   backends    List available backends
+
+  models      Manage local LLM models
+    list      List available models
+    pull      Download a model
+    remove    Remove a model
+    info      Show model information
+    default   Set default model
 
   slash       Slash command management
     run       Run a slash command
@@ -379,11 +496,23 @@ Flags:
 
 | Variable | Description |
 |----------|-------------|
-| `OLLAMA_HOST` | Ollama server URL |
+| `OLLAMA_HOST` | Ollama server URL (default: http://localhost:11434) |
 | `OPENAI_API_KEY` | OpenAI API key |
 | `TOGETHER_API_KEY` | Together.ai API key |
 | `GROQ_API_KEY` | Groq API key |
-| `SCMD_CONFIG` | Config file path |
+| `SCMD_CONFIG` | Config file path (default: ~/.scmd/config.yaml) |
+| `SCMD_DATA_DIR` | Data directory (default: ~/.scmd) |
+| `SCMD_DEBUG` | Enable debug logging (set to 1) |
+
+## Performance
+
+llama.cpp with Qwen models provides fast, efficient inference:
+
+- **Qwen2.5-0.5B**: ~10 tokens/sec on CPU, ~50 tokens/sec on GPU
+- **Qwen3-4B**: ~5 tokens/sec on CPU, ~20 tokens/sec on GPU (M1 Mac)
+- **Qwen2.5-7B**: ~2 tokens/sec on CPU, ~10 tokens/sec on GPU
+
+Models use 4-bit quantization (Q4_K_M) for optimal size/quality tradeoff.
 
 ## Contributing
 
