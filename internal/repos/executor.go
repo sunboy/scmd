@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os/exec"
 	"strings"
 	"text/template"
 
 	"github.com/scmd/scmd/internal/backend"
 	"github.com/scmd/scmd/internal/command"
+	"github.com/scmd/scmd/internal/tools"
 )
 
 // PluginCommand wraps a CommandSpec to implement the command.Command interface
@@ -89,6 +91,44 @@ func (c *PluginCommand) Execute(ctx context.Context, args *command.Args, execCtx
 		}, nil
 	}
 
+	// Execute pre-hooks
+	if c.spec.Hooks != nil && len(c.spec.Hooks.Pre) > 0 {
+		if err := c.executeHooks(ctx, c.spec.Hooks.Pre); err != nil {
+			return &command.Result{
+				Success: false,
+				Error:   fmt.Sprintf("pre-hook failed: %v", err),
+			}, nil
+		}
+	}
+
+	// Check for composition - delegate to composer if present
+	if c.spec.Compose != nil && execCtx.Registry != nil {
+		// Create loader and composer for composition execution
+		manager := NewManager(execCtx.DataDir)
+		installDir := execCtx.DataDir + "/commands"
+		loader := NewLoader(manager, installDir)
+		composer := NewComposer(execCtx.Registry, loader)
+		result, err := composer.ExecuteComposed(ctx, c.spec, args, execCtx)
+		if err != nil {
+			return &command.Result{
+				Success: false,
+				Error:   fmt.Sprintf("composition failed: %v", err),
+			}, nil
+		}
+
+		// Execute post-hooks after composition
+		if c.spec.Hooks != nil && len(c.spec.Hooks.Post) > 0 {
+			if err := c.executeHooks(ctx, c.spec.Hooks.Post); err != nil {
+				return &command.Result{
+					Success: false,
+					Error:   fmt.Sprintf("post-hook failed: %v", err),
+				}, nil
+			}
+		}
+
+		return result, nil
+	}
+
 	// Build template context
 	tmplCtx := c.buildTemplateContext(args)
 
@@ -113,34 +153,65 @@ func (c *PluginCommand) Execute(ctx context.Context, args *command.Args, execCtx
 		}
 	}
 
-	// Build completion request
-	req := &backend.CompletionRequest{
-		Prompt:       prompt,
-		SystemPrompt: system,
-		MaxTokens:    2048,
-		Temperature:  0.7,
+	// Use tool calling if backend supports it
+	var output string
+	if execCtx.Backend.SupportsToolCalling() {
+		// Create tool registry with confirmation UI
+		var confirmUI tools.ConfirmUI
+		if execCtx.UI != nil {
+			confirmUI = execCtx.UI
+		}
+
+		toolRegistry := tools.DefaultRegistry(confirmUI)
+		toolExecutor := tools.NewExecutor(toolRegistry, execCtx.Backend)
+
+		output, err = toolExecutor.ExecuteWithTools(ctx, prompt, system)
+		if err != nil {
+			return &command.Result{
+				Success: false,
+				Error:   fmt.Sprintf("tool execution failed: %v", err),
+			}, nil
+		}
+	} else {
+		// Fall back to basic completion if no tool calling
+		req := &backend.CompletionRequest{
+			Prompt:       prompt,
+			SystemPrompt: system,
+			MaxTokens:    2048,
+			Temperature:  0.7,
+		}
+
+		// Apply model preferences
+		if c.spec.Model.MaxTokens > 0 {
+			req.MaxTokens = c.spec.Model.MaxTokens
+		}
+		if c.spec.Model.Temperature > 0 {
+			req.Temperature = c.spec.Model.Temperature
+		}
+
+		resp, err := execCtx.Backend.Complete(ctx, req)
+		if err != nil {
+			return &command.Result{
+				Success: false,
+				Error:   fmt.Sprintf("completion failed: %v", err),
+			}, nil
+		}
+		output = resp.Content
 	}
 
-	// Apply model preferences
-	if c.spec.Model.MaxTokens > 0 {
-		req.MaxTokens = c.spec.Model.MaxTokens
-	}
-	if c.spec.Model.Temperature > 0 {
-		req.Temperature = c.spec.Model.Temperature
-	}
-
-	// Execute completion
-	resp, err := execCtx.Backend.Complete(ctx, req)
-	if err != nil {
-		return &command.Result{
-			Success: false,
-			Error:   fmt.Sprintf("completion failed: %v", err),
-		}, nil
+	// Execute post-hooks
+	if c.spec.Hooks != nil && len(c.spec.Hooks.Post) > 0 {
+		if err := c.executeHooks(ctx, c.spec.Hooks.Post); err != nil {
+			return &command.Result{
+				Success: false,
+				Error:   fmt.Sprintf("post-hook failed: %v", err),
+			}, nil
+		}
 	}
 
 	return &command.Result{
 		Success: true,
-		Output:  resp.Content,
+		Output:  output,
 	}, nil
 }
 
@@ -198,6 +269,45 @@ func (c *PluginCommand) executeTemplate(tmplStr string, ctx map[string]interface
 	}
 
 	return buf.String(), nil
+}
+
+// executeHooks executes a list of hook commands
+func (c *PluginCommand) executeHooks(ctx context.Context, hooks []HookAction) error {
+	for _, hook := range hooks {
+		// Check condition if present
+		if hook.If != "" {
+			// Simple condition check - in production this would be more sophisticated
+			// For now, skip conditional hooks
+			continue
+		}
+
+		// Execute shell command
+		if hook.Shell != "" {
+			cmd := exec.CommandContext(ctx, "sh", "-c", hook.Shell)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("shell hook failed: %s (output: %s)", err, string(output))
+			}
+			continue
+		}
+
+		// Execute scmd command
+		if hook.Command != "" {
+			// Parse command and args
+			parts := strings.Fields(hook.Command)
+			if len(parts) == 0 {
+				continue
+			}
+			// For now, execute as shell command
+			// TODO: Use command registry to execute scmd commands
+			cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("command hook failed: %s (output: %s)", err, string(output))
+			}
+		}
+	}
+	return nil
 }
 
 // Loader loads plugin commands from installed command specs

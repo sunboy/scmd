@@ -1,0 +1,38 @@
+name: git-commit-with-hooks
+version: 1.0.0
+description: Generate git commit message with pre/post hooks
+usage: scmd git-commit-with-hooks
+category: git
+author: scmd team
+license: MIT
+
+args:
+  - name: message_type
+    description: Type of commit (feat, fix, docs, etc.)
+    required: false
+    default: feat
+
+hooks:
+  pre:
+    - shell: git status --short
+    - shell: echo "Generating commit message..."
+  post:
+    - shell: echo "Commit message generated!"
+    - shell: git diff --stat
+
+prompt:
+  system: |
+    You are an expert at writing git commit messages following conventional commits.
+    Generate a clear, descriptive commit message based on the git diff.
+  template: |
+    Generate a git commit message for the following changes.
+    Use conventional commit format: {{.message_type}}: <description>
+
+    Include:
+    - A clear one-line summary (max 50 chars)
+    - A detailed explanation of what changed and why
+    - Any breaking changes if applicable
+
+model:
+  temperature: 0.3
+  max_tokens: 500

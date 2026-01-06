@@ -220,8 +220,10 @@ func (r *Runner) Run(ctx context.Context, slashCmd *SlashCommand, args []string,
 
 	// Build execution context
 	execCtx := &command.ExecContext{
-		Backend: be,
-		UI:      &simpleUI{},
+		Backend:  be,
+		UI:       &simpleUI{},
+		Registry: r.registry,
+		DataDir:  r.dataDir,
 	}
 
 	return cmd.Execute(ctx, cmdArgs, execCtx)

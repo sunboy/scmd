@@ -1,0 +1,53 @@
+name: project-analyzer
+version: 1.0.0
+description: Analyze a project structure and suggest improvements (uses tool calling)
+usage: scmd project-analyzer [path]
+category: code
+author: scmd team
+license: MIT
+
+args:
+  - name: path
+    description: Path to project directory
+    required: false
+    default: .
+
+# This command benefits from tool calling because the LLM can:
+# - Use shell tool to run 'ls', 'find', 'git status', etc.
+# - Use read_file tool to read package.json, README.md, etc.
+# - Use http_get tool to fetch remote documentation if needed
+
+prompt:
+  system: |
+    You are an expert software architect and project analyzer.
+    You have access to tools to read files and execute shell commands.
+
+    Use these tools to:
+    1. Explore the project structure
+    2. Read configuration files
+    3. Check for common patterns and anti-patterns
+    4. Identify missing files (README, tests, docs)
+
+    Provide actionable recommendations for improving the project.
+  template: |
+    Analyze the project at: {{.path}}
+
+    Please:
+    1. List the directory structure
+    2. Read key files (package.json, README.md, go.mod, etc.)
+    3. Check for test files
+    4. Identify the tech stack
+    5. Provide recommendations for:
+       - Missing documentation
+       - Missing tests
+       - Project structure improvements
+       - Configuration best practices
+
+model:
+  temperature: 0.5
+  max_tokens: 2000
+
+examples:
+  - scmd project-analyzer
+  - scmd project-analyzer ./my-app
+  - scmd project-analyzer ~/projects/webapp
