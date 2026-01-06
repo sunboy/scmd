@@ -1,0 +1,40 @@
+name: code-review-with-context
+version: 1.0.0
+description: Review code with automatic context gathering
+category: development
+
+context:
+  files:
+    - "*.go"
+    - "go.mod"
+  git: true
+  env:
+    - "GOPATH"
+    - "GO111MODULE"
+  max_tokens: 8000
+
+prompt:
+  system: |
+    You are an expert code reviewer. Review the provided code for:
+    - Code quality and best practices
+    - Potential bugs
+    - Performance issues
+    - Security concerns
+
+    The context includes relevant files, git status, and environment.
+
+  template: |
+    Please review this code: {{.input}}
+
+    Focus on: {{.focus | default "all aspects"}}
+
+args:
+  - name: focus
+    description: "Focus area (e.g., security, performance, style)"
+    required: false
+    default: "all aspects"
+
+examples:
+  - "cat main.go | scmd /code-review-with-context"
+  - "cat main.go | scmd /code-review-with-context security"
+  - "git diff | scmd /code-review-with-context performance"
