@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/scmd/scmd/internal/validation"
 )
 
 // Repository represents a plugin repository
@@ -216,7 +218,12 @@ func (m *Manager) Load() error {
 		return err
 	}
 
+	// Validate and load repositories
 	for _, r := range repos {
+		// Validate URL (SECURITY: prevent SSRF and file:// access)
+		if err := validation.ValidateRepoURL(r.URL); err != nil {
+			return fmt.Errorf("invalid repository '%s': %w", r.Name, err)
+		}
 		m.repos[r.Name] = r
 	}
 
@@ -247,6 +254,11 @@ func (m *Manager) Save() error {
 
 // Add adds a new repository
 func (m *Manager) Add(name, url string) error {
+	// Validate URL (SECURITY: prevent SSRF, file:// access, and other attacks)
+	if err := validation.ValidateRepoURL(url); err != nil {
+		return fmt.Errorf("invalid repository URL: %w", err)
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

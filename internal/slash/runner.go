@@ -12,6 +12,7 @@ import (
 	"github.com/scmd/scmd/internal/backend"
 	"github.com/scmd/scmd/internal/command"
 	"github.com/scmd/scmd/internal/repos"
+	"github.com/scmd/scmd/internal/validation"
 )
 
 // SlashCommand represents a configured slash command
@@ -71,7 +72,21 @@ func (r *Runner) LoadConfig() error {
 		return err
 	}
 
-	return yaml.Unmarshal(data, r.config)
+	if err := yaml.Unmarshal(data, r.config); err != nil {
+		return err
+	}
+
+	// Validate all loaded commands
+	for i, cmd := range r.config.Commands {
+		if err := validation.ValidateCommandName(cmd.Name); err != nil {
+			return fmt.Errorf("invalid command name '%s' at index %d: %w", cmd.Name, i, err)
+		}
+		if err := validation.ValidateAliases(cmd.Aliases); err != nil {
+			return fmt.Errorf("command '%s' at index %d: %w", cmd.Name, i, err)
+		}
+	}
+
+	return nil
 }
 
 // SaveConfig saves the slash command configuration
@@ -248,6 +263,16 @@ func (r *Runner) List() []SlashCommand {
 
 // Add adds a new slash command
 func (r *Runner) Add(cmd SlashCommand) error {
+	// Validate command name (SECURITY: prevent path traversal and command injection)
+	if err := validation.ValidateCommandName(cmd.Name); err != nil {
+		return fmt.Errorf("invalid command name: %w", err)
+	}
+
+	// Validate aliases (SECURITY: same validation as command names)
+	if err := validation.ValidateAliases(cmd.Aliases); err != nil {
+		return err
+	}
+
 	// Check for duplicates
 	if r.FindCommand(cmd.Name) != nil {
 		return fmt.Errorf("slash command '%s' already exists", cmd.Name)
@@ -279,6 +304,11 @@ func (r *Runner) Remove(name string) error {
 
 // AddAlias adds an alias to an existing command
 func (r *Runner) AddAlias(cmdName, alias string) error {
+	// Validate alias (SECURITY: prevent path traversal and command injection)
+	if err := validation.ValidateCommandName(alias); err != nil {
+		return fmt.Errorf("invalid alias: %w", err)
+	}
+
 	// Check alias doesn't exist
 	if r.FindCommand(alias) != nil {
 		return fmt.Errorf("alias '%s' already exists", alias)
