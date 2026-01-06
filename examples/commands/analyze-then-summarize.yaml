@@ -1,0 +1,42 @@
+name: analyze-then-summarize
+version: 1.0.0
+description: Analyze code for issues, then summarize findings
+usage: scmd analyze-then-summarize <file>
+category: code
+author: scmd team
+license: MIT
+
+args:
+  - name: file
+    description: File to analyze
+    required: true
+
+# This command uses composition to chain two commands together
+compose:
+  pipeline:
+    - command: analyze-code
+      transform: trim
+      on_error: continue
+    - command: summarize
+      args:
+        format: bullet-points
+      transform: trim
+
+prompt:
+  system: |
+    You are a code analysis expert. Analyze code for potential issues,
+    bugs, performance problems, and suggest improvements.
+  template: |
+    Analyze the following code from {{.file}}:
+
+    {{.stdin}}
+
+    Provide:
+    1. Potential bugs or errors
+    2. Performance concerns
+    3. Code quality improvements
+    4. Security issues
+
+model:
+  temperature: 0.4
+  max_tokens: 1000

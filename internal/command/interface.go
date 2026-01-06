@@ -104,9 +104,11 @@ func NewErrorResult(err string, suggestions ...string) *Result {
 
 // ExecContext provides execution dependencies
 type ExecContext struct {
-	Config  *config.Config
-	Backend backend.Backend
-	UI      UI
+	Config   *config.Config
+	Backend  backend.Backend
+	UI       UI
+	Registry *Registry // Command registry for composition
+	DataDir  string    // Data directory for plugin loading
 }
 
 // UI interface for user interaction
