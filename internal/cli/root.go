@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -518,7 +519,105 @@ func runREPL(execCtx *command.ExecContext) error {
 
 // Execute runs the root command
 func Execute() error {
+	// Intercept slash commands before cobra processes them
+	if len(os.Args) > 1 && strings.HasPrefix(os.Args[1], "/") {
+		return runSlashCommand(os.Args[1], os.Args[2:])
+	}
 	return rootCmd.Execute()
+}
+
+// runSlashCommand handles /command style invocations
+func runSlashCommand(cmd string, args []string) error {
+	// Strip leading slash
+	cmdName := strings.TrimPrefix(cmd, "/")
+
+	// Initialize everything via preRun
+	if err := preRun(rootCmd, nil); err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	mode := DetectIOMode()
+
+	// Read stdin if piped
+	var stdinContent string
+	if mode.PipeIn {
+		reader := NewStdinReader()
+		content, err := reader.Read(ctx)
+		if err != nil {
+			return fmt.Errorf("read stdin: %w", err)
+		}
+		stdinContent = content
+	}
+
+	// Setup output
+	output, err := NewOutputWriter(&OutputConfig{FilePath: outputFlag, Mode: mode})
+	if err != nil {
+		return err
+	}
+	defer output.Close()
+
+	// Get the best available backend
+	activeBackend, err := getActiveBackend(ctx)
+	if err != nil && verbose {
+		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+	}
+
+	// Create execution context
+	execCtx := &command.ExecContext{
+		Config:  cfg,
+		Backend: activeBackend,
+		UI:      NewConsoleUI(mode),
+	}
+
+	// Look up command in registry
+	c, ok := cmdRegistry.Get(cmdName)
+	if !ok {
+		// Try aliases
+		aliasMap := map[string]string{
+			"e":   "explain",
+			"r":   "review",
+			"gc":  "commit",
+			"sum": "summarize",
+			"cfg": "config",
+		}
+		if alias, found := aliasMap[cmdName]; found {
+			c, ok = cmdRegistry.Get(alias)
+		}
+	}
+
+	if !ok {
+		return fmt.Errorf("unknown slash command: /%s\nRun 'scmd slash list' for available commands", cmdName)
+	}
+
+	// Build args
+	cmdArgs := command.NewArgs()
+	cmdArgs.Positional = args
+	if stdinContent != "" {
+		cmdArgs.Options["stdin"] = stdinContent
+	}
+
+	// Execute
+	result, err := c.Execute(ctx, cmdArgs, execCtx)
+	if err != nil {
+		return err
+	}
+
+	if result.Output != "" {
+		output.WriteLine(result.Output)
+	}
+
+	if !result.Success {
+		if len(result.Suggestions) > 0 {
+			fmt.Fprintln(os.Stderr, "Suggestions:")
+			for _, s := range result.Suggestions {
+				fmt.Fprintf(os.Stderr, "  - %s\n", s)
+			}
+		}
+		return fmt.Errorf("%s", result.Error)
+	}
+
+	return nil
 }
 
 // ConsoleUI implements command.UI for terminal output
