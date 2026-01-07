@@ -1,0 +1,214 @@
+name: rsync-backup
+version: "1.0.0"
+description: Create rsync backup commands with exclude patterns and options
+category: system
+author: scmd-evaluation
+
+args:
+  - name: source
+    description: Source directory
+    required: false
+  - name: destination
+    description: Destination directory or remote host
+    required: false
+  - name: dry_run
+    description: Show what would be copied without actually copying
+    default: "true"
+
+prompt:
+  system: |
+    You are an rsync expert. Help users create safe, efficient backup commands.
+
+    rsync is powerful but complex. Common mistakes:
+    - Forgetting trailing slash on source (huge difference!)
+    - No dry-run before actual sync (dangerous!)
+    - Not excluding unnecessary files
+    - Wrong delete options (can wipe destination!)
+
+    Essential flags:
+    - -a (archive): Preserves permissions, timestamps, symlinks, etc.
+      Equivalent to: -rlptgoD
+    - -v (verbose): Show files being transferred
+    - -h (human-readable): Show sizes in KB, MB, GB
+    - -z (compress): Compress during transfer (for remote)
+    - -P (progress): Show progress and keep partial files
+      Equivalent to: --partial --progress
+    - -n (dry-run): TEST mode - show what would be done
+    - --delete: Remove files from dest that aren't in source (DANGEROUS!)
+
+    Trailing slash matters:
+    - rsync -a /source/ /dest    → Copies contents of source into dest
+    - rsync -a /source /dest     → Creates /dest/source/ directory
+
+    Exclude patterns:
+    - --exclude="*.tmp": Exclude temp files
+    - --exclude="node_modules/": Exclude directory
+    - --exclude-from=file.txt: Read exclusions from file
+    - --include="*.jpg" --exclude="*": Only include JPGs
+
+    Common patterns:
+    1. Local backup: rsync -avh --progress /source/ /backup/
+    2. Remote backup: rsync -avzP /source/ user@host:/backup/
+    3. With exclusions: rsync -av --exclude="*.log" /source/ /backup/
+    4. Mirror with delete: rsync -av --delete /source/ /backup/
+    5. Dry-run first: rsync -avn /source/ /backup/
+
+    Safety checklist:
+    1. ALWAYS do dry-run first (-n flag)
+    2. Check source has trailing slash if you want contents
+    3. Review exclude patterns
+    4. Be VERY careful with --delete
+    5. Test with small directory first
+    6. Consider --backup and --backup-dir for safety
+
+    Incremental backups:
+    - Use --link-dest for hard-linked incrementals
+    - rsync -a --link-dest=/backup/previous /source/ /backup/current/
+
+    Provide:
+    1. Dry-run command (with -n) FIRST
+    2. Actual command after user verifies
+    3. Exclude patterns if applicable
+    4. Explanation of flags
+    5. Safety warnings for destructive options
+
+  template: |
+    {{- if .source }}
+    Source: {{.source}}
+    {{- end }}
+
+    {{- if .destination }}
+    Destination: {{.destination}}
+    {{- end }}
+
+    {{- if .dry_run }}
+    Dry-run mode: {{.dry_run}}
+    {{- end }}
+
+    {{- if .stdin }}
+    Additional requirements:
+    {{.stdin}}
+    {{- end }}
+
+    Generate rsync backup commands with safety checks.
+
+model:
+  temperature: 0.2
+  max_tokens: 900
+
+examples:
+  - description: "Basic local backup with common exclusions"
+    input:
+      source: "/home/user/projects"
+      destination: "/backup/projects"
+    output: |
+      # Step 1: DRY-RUN (shows what would be copied)
+      rsync -avhn --progress \
+        --exclude="node_modules/" \
+        --exclude=".git/" \
+        --exclude="*.tmp" \
+        --exclude="*.log" \
+        /home/user/projects/ \
+        /backup/projects/
+
+      # Explanation:
+      - -a: Archive mode (preserves everything)
+      - -v: Verbose output
+      - -h: Human-readable sizes
+      - -n: DRY-RUN (remove after verification)
+      - --progress: Show transfer progress
+      - Note trailing slash on source!
+
+      # Step 2: If dry-run looks good, run actual backup:
+      rsync -avh --progress \
+        --exclude="node_modules/" \
+        --exclude=".git/" \
+        --exclude="*.tmp" \
+        --exclude="*.log" \
+        /home/user/projects/ \
+        /backup/projects/
+
+      # Step 3: Verify
+      du -sh /backup/projects
+
+  - description: "Remote backup over SSH"
+    input:
+      source: "/var/www"
+      destination: "backup-server:/backups/www"
+    output: |
+      # Step 1: DRY-RUN
+      rsync -avzhn --progress \
+        -e "ssh -p 22" \
+        --exclude="*.log" \
+        --exclude="cache/" \
+        /var/www/ \
+        backup-server:/backups/www/
+
+      # Explanation:
+      - -z: Compress during transfer (for network)
+      - -e "ssh -p 22": Use SSH (specify port if needed)
+
+      # Step 2: Actual backup
+      rsync -avzh --progress \
+        -e "ssh -p 22" \
+        --exclude="*.log" \
+        --exclude="cache/" \
+        /var/www/ \
+        backup-server:/backups/www/
+
+  - description: "Mirror with deletion (DANGEROUS)"
+    input:
+      source: "/master"
+      destination: "/mirror"
+      stdin: "sync exactly, delete files not in source"
+    output: |
+      # ⚠️  WARNING: --delete will remove files from destination!
+
+      # Step 1: DRY-RUN to see what would be deleted
+      rsync -avn --delete /master/ /mirror/
+
+      # Carefully review the output, especially deletions!
+
+      # Step 2: Create backup before syncing
+      cp -al /mirror /mirror-backup-$(date +%Y%m%d)
+
+      # Step 3: Actually sync with delete
+      rsync -av --delete /master/ /mirror/
+
+      # Safer alternative: Use --backup
+      rsync -av --delete --backup --backup-dir=/mirror-backup /master/ /mirror/
+
+  - description: "Incremental backup with hard links"
+    input:
+      source: "/data"
+      destination: "/backup"
+      stdin: "incremental backup saving space"
+    output: |
+      # Incremental backup using hard links (saves space!)
+
+      # Variables
+      CURRENT=$(date +%Y-%m-%d-%H%M)
+      PREVIOUS=$(ls -1d /backup/20* 2>/dev/null | tail -1)
+
+      # Create backup directory
+      mkdir -p /backup/$CURRENT
+
+      # If previous backup exists, use hard links
+      if [ -n "$PREVIOUS" ]; then
+        rsync -avh --progress \
+          --delete \
+          --link-dest="$PREVIOUS" \
+          /data/ \
+          /backup/$CURRENT/
+      else
+        # First backup, no link-dest
+        rsync -avh --progress /data/ /backup/$CURRENT/
+      fi
+
+      # Create "latest" symlink
+      ln -snf $CURRENT /backup/latest
+
+      # Explanation:
+      - --link-dest: Files unchanged since previous backup are hard-linked
+      - Saves huge amounts of space
+      - Each backup looks complete but shares unchanged files

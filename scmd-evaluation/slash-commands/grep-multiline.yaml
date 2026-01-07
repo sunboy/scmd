@@ -1,0 +1,178 @@
+name: grep-multiline
+version: "1.0.0"
+description: Search for patterns across multiple lines or with context
+category: text-processing
+author: scmd-evaluation
+
+args:
+  - name: pattern
+    description: Pattern to search for
+    required: false
+  - name: file
+    description: File to search in
+    required: false
+  - name: context
+    description: Lines of context to show (default: 2)
+    default: "2"
+
+prompt:
+  system: |
+    You are a grep expert specializing in complex pattern matching and multiline searches.
+
+    Help users search text with grep and its variants (grep, egrep, ripgrep).
+
+    Common patterns:
+    - Basic: grep "pattern" file
+    - Recursive: grep -r "pattern" directory/
+    - Case-insensitive: grep -i "pattern" file
+    - Whole words: grep -w "pattern" file
+    - Invert match: grep -v "pattern" file
+    - Show line numbers: grep -n "pattern" file
+    - Count matches: grep -c "pattern" file
+
+    Context options:
+    - Before: grep -B 3 "pattern" file (3 lines before)
+    - After: grep -A 3 "pattern" file (3 lines after)
+    - Around: grep -C 3 "pattern" file (3 lines before & after)
+
+    Regex patterns:
+    - Use -E for extended regex (or use egrep)
+    - ^ : Start of line
+    - $ : End of line
+    - . : Any character
+    - * : Zero or more
+    - + : One or more (with -E)
+    - ? : Zero or one (with -E)
+    - [abc] : Character class
+    - (a|b) : Alternation (with -E)
+    - \b : Word boundary
+
+    Multiline searches:
+    - grep can't naturally do multiline (single-line focused)
+    - Use perl: perl -0777 -ne 'print if /pattern.*pattern/s' file
+    - Use ripgrep: rg -U "pattern.*pattern" file
+    - Use pcregrep: pcregrep -M "pattern\n.*pattern" file
+    - Use awk: awk '/start/,/end/' file (range patterns)
+
+    Common use cases:
+    - Find function definitions: grep -n "^function\|^def " *.py
+    - Find TODO comments: grep -rn "TODO\|FIXME" src/
+    - Find errors in logs: grep -i "error\|fail\|exception" *.log
+    - Exclude files: grep "pattern" --exclude="*.min.js" -r .
+    - Binary files: grep -I "pattern" * (skip binary)
+
+    ripgrep (rg) advantages:
+    - Faster than grep
+    - Respects .gitignore
+    - Multiline: rg -U "pattern"
+    - Better defaults
+
+    Provide:
+    1. The correct grep/rg command
+    2. Explanation of pattern and flags
+    3. Alternative approaches (perl, awk, rg)
+    4. Performance tips for large files/directories
+
+  template: |
+    {{- if .stdin }}
+    Pattern description or example:
+    {{.stdin}}
+    {{- end }}
+
+    {{- if .pattern }}
+    Search for: {{.pattern}}
+    {{- end }}
+
+    {{- if .file }}
+    In file/directory: {{.file}}
+    {{- end }}
+
+    {{- if .context }}
+    Context lines: {{.context}}
+    {{- end }}
+
+    Generate the grep command. If multiline matching is needed, provide alternatives.
+
+model:
+  temperature: 0.2
+  max_tokens: 700
+
+hooks:
+  pre:
+    - shell: command -v rg >/dev/null 2>&1 || echo "💡 Tip: Install ripgrep (rg) for faster, better grep: brew install ripgrep"
+
+examples:
+  - description: "Find with context lines"
+    input:
+      pattern: "ERROR"
+      file: "app.log"
+      context: "3"
+    output: |
+      # Show 3 lines before and after each match
+      grep -C 3 "ERROR" app.log
+
+      # Or separately:
+      grep -B 3 -A 3 "ERROR" app.log
+
+      # With line numbers:
+      grep -C 3 -n "ERROR" app.log
+
+      # With color (easier to see matches):
+      grep -C 3 --color=always "ERROR" app.log | less -R
+
+  - description: "Multiline pattern matching"
+    input:
+      pattern: "function start() { ... end }"
+      stdin: "Find function definition spanning multiple lines"
+    output: |
+      # grep can't do true multiline, use alternatives:
+
+      # Option 1: ripgrep (recommended)
+      rg -U "function start\(\) \{[\s\S]*?\}" file.js
+
+      # Option 2: pcregrep (Perl-compatible)
+      pcregrep -M "function start\(\) \{.*?^\}" file.js
+
+      # Option 3: perl
+      perl -0777 -ne 'print "$1\n" while /function start\(\) \{(.*?)\}/gs' file.js
+
+      # Option 4: awk (for start/end patterns)
+      awk '/function start/,/^}/' file.js
+
+      # Explanation:
+      - -U (rg): Enable multiline mode
+      - -M (pcregrep): Multiline mode
+      - -0777 (perl): Slurp entire file
+      - [\s\S]*? : Match any character including newlines (non-greedy)
+
+  - description: "Complex pattern with multiple conditions"
+    input:
+      pattern: "ERROR or FATAL but not INFO"
+    output: |
+      # Match ERROR or FATAL, exclude INFO
+      grep -E "ERROR|FATAL" file.log | grep -v "INFO"
+
+      # Or in one command:
+      grep -E "(ERROR|FATAL)" file.log | grep -v "INFO"
+
+      # Using ripgrep (cleaner):
+      rg "ERROR|FATAL" file.log | rg -v "INFO"
+
+      # Explanation:
+      - -E: Extended regex (for |)
+      - (ERROR|FATAL): Match either pattern
+      - | grep -v: Pipe to second grep to exclude
+
+  - description: "Recursive search with exclusions"
+    input:
+      pattern: "console.log"
+      file: "src/"
+    output: |
+      # Recursive search, exclude node_modules and minified files
+      grep -r "console.log" src/ --exclude-dir=node_modules --exclude="*.min.js"
+
+      # With ripgrep (respects .gitignore automatically):
+      rg "console.log" src/
+
+      # Show only filenames:
+      grep -rl "console.log" src/ --exclude-dir=node_modules

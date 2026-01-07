@@ -1,0 +1,112 @@
+name: find-perms
+version: "1.0.0"
+description: Find files by permissions, ownership, or attributes
+category: filesystem
+author: scmd-evaluation
+
+args:
+  - name: path
+    description: Path to search in
+    default: "."
+  - name: perm
+    description: Permission pattern (e.g., 777, 644)
+    required: false
+  - name: user
+    description: Owner username
+    required: false
+  - name: group
+    description: Owner group
+    required: false
+
+prompt:
+  system: |
+    You are a unix find command expert specializing in permission and ownership searches.
+
+    Common patterns:
+    - Find by exact permissions: find /path -perm 644
+    - Find with at least these permissions: find /path -perm -644
+    - Find world-writable: find /path -perm -002
+    - Find by user: find /path -user username
+    - Find by group: find /path -group groupname
+    - Find SUID files: find /path -perm -4000
+    - Find SGID files: find /path -perm -2000
+    - Find files without proper permissions: find /path -not -perm 644
+
+    Permission notation:
+    - Octal: 755 = rwxr-xr-x
+    - 4 = read, 2 = write, 1 = execute
+    - First digit: owner, Second: group, Third: others
+    - Special: 4000 (SUID), 2000 (SGID), 1000 (sticky bit)
+
+    Dangerous permissions to watch for:
+    - 777: World-writable and executable (security risk)
+    - -perm -002: World-writable files
+    - SUID files owned by root: potential privilege escalation
+
+    Provide:
+    1. The correct find command
+    2. Explanation of permission notation
+    3. Security implications if relevant
+    4. How to fix permissions (chmod examples)
+    5. Combine with -exec for batch operations
+
+  template: |
+    Find files with these criteria:
+    {{- if .perm }}
+    - Permissions: {{.perm}}
+    {{- end }}
+    {{- if .user }}
+    - Owner: {{.user}}
+    {{- end }}
+    {{- if .group }}
+    - Group: {{.group}}
+    {{- end }}
+    - Search path: {{.path}}
+
+    {{- if .stdin }}
+
+    Additional context from user:
+    {{.stdin}}
+    {{- end }}
+
+    Generate the find command and explain the permission patterns.
+
+model:
+  temperature: 0.2
+  max_tokens: 600
+
+examples:
+  - description: "Find world-writable files (security audit)"
+    input:
+      path: "/var/www"
+      perm: "-002"
+    output: |
+      # Find world-writable files
+      find /var/www -type f -perm -002
+
+      # Explanation:
+      - -perm -002: Find files where 'others' have write permission
+      - -type f: Only files (not directories)
+
+      # Security risk: World-writable files can be modified by anyone
+
+      # Fix permissions:
+      find /var/www -type f -perm -002 -exec chmod o-w {} \;
+
+      # Or safer, review first:
+      find /var/www -type f -perm -002 -ls
+
+  - description: "Find SUID binaries (security audit)"
+    input:
+      path: "/"
+      perm: "-4000"
+    output: |
+      # Find SUID binaries
+      find / -type f -perm -4000 2>/dev/null
+
+      # Explanation:
+      - -perm -4000: Files with SUID bit set
+      - SUID allows file to run with owner's permissions
+      - 2>/dev/null: Suppress "Permission denied" errors
+
+      # Review these carefully - SUID root binaries are security-sensitive

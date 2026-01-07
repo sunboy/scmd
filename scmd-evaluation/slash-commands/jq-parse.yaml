@@ -1,0 +1,139 @@
+name: jq-parse
+version: "1.0.0"
+description: Generate jq commands for complex JSON parsing
+category: data-processing
+author: scmd-evaluation
+
+args:
+  - name: query
+    description: What to extract from the JSON
+    required: false
+  - name: file
+    description: JSON file to parse
+    required: false
+
+prompt:
+  system: |
+    You are a jq expert. jq syntax is notoriously difficult to remember.
+
+    Help users extract data from JSON with the correct jq syntax.
+
+    Common patterns:
+    - Get field: .fieldname
+    - Get nested: .field.nested.deep
+    - Array elements: .[0] or .[]
+    - Filter arrays: .[] | select(.field == "value")
+    - Map: .[] | .fieldname
+    - Multiple fields: {name: .name, id: .id}
+    - Array to CSV: .[] | [.field1, .field2] | @csv
+    - Group by: group_by(.field)
+    - Sort: sort_by(.field)
+    - Count: length
+    - Keys: keys
+    - Conditional: if .field == "value" then .a else .b end
+    - Pipe: | combines operations
+    - Recursive: .. finds all values recursively
+
+    Complex examples:
+    - Find objects with property: .[] | select(.status == "active")
+    - Extract specific fields from array: .users[] | {name: .name, email: .email}
+    - Flatten nested arrays: .[] | .items[] | .subitems[]
+    - Get unique values: [.[] | .field] | unique
+    - Sum/avg/min/max: [.[] | .price] | add
+    - Handle nulls: .field // "default"
+    - Multiple filters: .[] | select(.age > 18) | select(.country == "US")
+
+    Provide:
+    1. The complete jq command
+    2. Explanation of each jq operator
+    3. Example input and output
+    4. Alternative approaches if applicable
+    5. Common gotchas or edge cases
+
+  template: |
+    {{- if .stdin }}
+    JSON data or sample:
+    {{.stdin}}
+    {{- end }}
+
+    {{- if .query }}
+    Extract/filter: {{.query}}
+    {{- end }}
+
+    {{- if .file }}
+    From file: {{.file}}
+    {{- end }}
+
+    Generate the jq command to accomplish this. Include the full command with file input if provided.
+
+    If the user provided sample JSON, analyze it and generate the most appropriate jq command.
+
+model:
+  temperature: 0.2
+  max_tokens: 800
+
+context:
+  files: []
+
+hooks:
+  pre:
+    - shell: command -v jq >/dev/null 2>&1 || echo "⚠️  jq not installed. Install with: brew install jq (macOS) or apt-get install jq (Linux)"
+
+examples:
+  - description: "Extract emails from users array"
+    input:
+      query: "get all email addresses from users array"
+      stdin: |
+        {
+          "users": [
+            {"name": "Alice", "email": "alice@example.com"},
+            {"name": "Bob", "email": "bob@example.com"}
+          ]
+        }
+    output: |
+      jq '.users[] | .email' data.json
+
+      # Or for JSON array output:
+      jq '[.users[] | .email]' data.json
+
+      # Output:
+      "alice@example.com"
+      "bob@example.com"
+
+      # Explanation:
+      - .users[] : Iterate through users array
+      - | : Pipe to next operation
+      - .email : Extract email field
+
+  - description: "Complex filter with multiple conditions"
+    input:
+      query: "find active users over 18 in the US"
+    output: |
+      jq '.users[] | select(.status == "active" and .age > 18 and .country == "US")'
+
+      # Explanation:
+      - select(): Filter objects matching condition
+      - and: Combine multiple conditions
+      - Comparison operators: ==, >, <, >=, <=, !=
+
+  - description: "Convert to CSV"
+    input:
+      query: "convert array of objects to CSV"
+    output: |
+      jq -r '.[] | [.name, .age, .city] | @csv'
+
+      # Explanation:
+      - -r : Raw output (no JSON quotes)
+      - [.name, .age, .city] : Create array of fields
+      - @csv : Convert to CSV format
+
+  - description: "Handle nested data"
+    input:
+      query: "flatten nested structure"
+    output: |
+      jq '[.users[] | .orders[] | {user: .username, order: .id, amount: .total}]'
+
+      # Explanation:
+      - Double iteration: .users[] then .orders[]
+      - Create new object with selected fields
+      - Wrap in [] for array output

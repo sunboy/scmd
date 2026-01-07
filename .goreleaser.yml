@@ -1,0 +1,275 @@
+# GoReleaser configuration for scmd
+# Documentation: https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    # Run tests before building
+    - go test -short ./...
+    # Ensure dependencies are up to date
+    - go mod tidy
+    # Generate shell completions
+    - mkdir -p completions
+    - go run ./cmd/scmd completion bash > completions/scmd.bash
+    - go run ./cmd/scmd completion zsh > completions/scmd.zsh
+    - go run ./cmd/scmd completion fish > completions/scmd.fish
+
+builds:
+  - id: scmd
+    main: ./cmd/scmd
+    binary: scmd
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X github.com/scmd/scmd/pkg/version.Version={{.Version}}
+      - -X github.com/scmd/scmd/pkg/version.Commit={{.Commit}}
+      - -X github.com/scmd/scmd/pkg/version.Date={{.Date}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # Ignore specific OS/arch combinations
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: scmd
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_
+      {{- if eq .Os "darwin" }}macOS
+      {{- else }}{{ .Os }}{{ end }}_
+      {{- .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - INSTALL.md
+      - CHANGELOG.md
+      - completions/*
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - 'typo'
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Performance Improvements
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
+
+# Homebrew tap
+brews:
+  - name: scmd
+    repository:
+      owner: scmd
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/scmd/scmd
+    description: "AI-powered slash commands for any terminal. Works offline by default."
+    license: MIT
+    commit_author:
+      name: scmd-bot
+      email: bot@scmd.dev
+    install: |
+      bin.install "scmd"
+      bash_completion.install "completions/scmd.bash" => "scmd"
+      zsh_completion.install "completions/scmd.zsh" => "_scmd"
+      fish_completion.install "completions/scmd.fish"
+    test: |
+      system "#{bin}/scmd", "--version"
+    dependencies:
+      - name: llama.cpp
+        type: optional
+
+# Linux packages (deb, rpm, apk)
+nfpms:
+  - id: scmd
+    package_name: scmd
+    vendor: scmd
+    homepage: https://github.com/scmd/scmd
+    maintainer: scmd team <team@scmd.dev>
+    description: "AI-powered slash commands for any terminal. Works offline by default."
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+    bindir: /usr/bin
+    contents:
+      # Binary
+      - src: ./scmd
+        dst: /usr/bin/scmd
+      # Shell completions
+      - src: ./completions/scmd.bash
+        dst: /usr/share/bash-completion/completions/scmd
+      - src: ./completions/scmd.zsh
+        dst: /usr/share/zsh/site-functions/_scmd
+      - src: ./completions/scmd.fish
+        dst: /usr/share/fish/vendor_completions.d/scmd.fish
+      # Documentation
+      - src: ./README.md
+        dst: /usr/share/doc/scmd/README.md
+      - src: ./LICENSE
+        dst: /usr/share/doc/scmd/LICENSE
+      - src: ./INSTALL.md
+        dst: /usr/share/doc/scmd/INSTALL.md
+    # Recommends llama.cpp for offline functionality
+    recommends:
+      - llama-cpp
+    # Create directories on install
+    scripts:
+      postinstall: "scripts/postinstall.sh"
+      preremove: "scripts/preremove.sh"
+
+# Docker images (optional)
+dockers:
+  - image_templates:
+      - "scmd/scmd:{{ .Version }}-amd64"
+      - "scmd/scmd:latest-amd64"
+    use: buildx
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=AI-powered slash commands for any terminal"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.source={{ .GitURL }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+  - image_templates:
+      - "scmd/scmd:{{ .Version }}-arm64"
+      - "scmd/scmd:latest-arm64"
+    use: buildx
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=AI-powered slash commands for any terminal"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.source={{ .GitURL }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+    goarch: arm64
+
+# Docker manifest for multi-arch
+docker_manifests:
+  - name_template: scmd/scmd:{{ .Version }}
+    image_templates:
+      - scmd/scmd:{{ .Version }}-amd64
+      - scmd/scmd:{{ .Version }}-arm64
+  - name_template: scmd/scmd:latest
+    image_templates:
+      - scmd/scmd:latest-amd64
+      - scmd/scmd:latest-arm64
+
+# GitHub release
+release:
+  github:
+    owner: scmd
+    name: scmd
+  draft: false
+  prerelease: auto
+  mode: append
+  header: |
+    ## scmd {{ .Tag }} ({{ .Date }})
+
+    AI-powered slash commands for any terminal. Works offline by default.
+
+    ### Installation
+
+    #### Homebrew (macOS/Linux)
+    ```bash
+    brew install scmd/tap/scmd
+    ```
+
+    #### npm (Cross-platform)
+    ```bash
+    npm install -g scmd-cli
+    ```
+
+    #### Shell script (wget/curl)
+    ```bash
+    curl -fsSL https://scmd.sh/install.sh | bash
+    # or
+    wget -qO- https://scmd.sh/install.sh | bash
+    ```
+
+    #### Linux packages
+    ```bash
+    # Debian/Ubuntu
+    wget https://github.com/scmd/scmd/releases/download/{{ .Tag }}/scmd_{{ .Version }}_linux_amd64.deb
+    sudo dpkg -i scmd_{{ .Version }}_linux_amd64.deb
+
+    # Red Hat/Fedora/CentOS
+    wget https://github.com/scmd/scmd/releases/download/{{ .Tag }}/scmd_{{ .Version }}_linux_amd64.rpm
+    sudo rpm -i scmd_{{ .Version }}_linux_amd64.rpm
+    ```
+
+    #### Binary download
+    Download the binary for your platform from the assets below and add it to your PATH.
+  footer: |
+    ---
+
+    **Full Changelog**: https://github.com/scmd/scmd/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+    Built with [GoReleaser](https://goreleaser.com) :rocket:
+
+# Announce releases (optional - can enable later)
+# announce:
+#   twitter:
+#     enabled: true
+#     message_template: 'scmd {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+
+# Upload to cloud storage (optional)
+# blobs:
+#   - provider: s3
+#     region: us-east-1
+#     bucket: scmd-releases
+#     folder: "{{ .Version }}"
+
+# Sign artifacts (optional - recommended for production)
+# signs:
+#   - artifacts: checksum
+#     args:
+#       - "--batch"
+#       - "--local-user"
+#       - "{{ .Env.GPG_FINGERPRINT }}"
+#       - "--output"
+#       - "${signature}"
+#       - "--detach-sign"
+#       - "${artifact}"
+
+# Universal binaries for macOS (combine amd64 and arm64)
+universal_binaries:
+  - id: scmd
+    replace: false
+    name_template: 'scmd'

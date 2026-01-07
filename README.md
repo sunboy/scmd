@@ -21,52 +21,119 @@ git diff | scmd review
 - **Offline-First** - llama.cpp with local Qwen models, no API keys required
 - **Auto-Download Models** - Qwen3-4B downloads automatically on first use (~2.6GB)
 - **Real Slash Commands** - Type `/command` directly (with or without shell integration)
-- **Repository System** - Install commands from community repos or create your own
+- **Repository-First Architecture** - Commands install from repos like npm packages
 - **Multiple LLM Backends** - llama.cpp (default), Ollama, OpenAI, Together.ai, Groq
 - **Command Composition** - Chain commands in pipelines, run in parallel, or use fallbacks
 - **Shell Integration** - Bash, Zsh, and Fish support with tab completion
 - **Local Caching** - Commands and manifests cached locally
 - **Lockfiles** - Reproducible installations for teams
 
+## Architecture
+
+scmd uses a **repository-first architecture** similar to package managers like npm or Homebrew:
+
+- **Small Core**: Only the `explain` command is built-in, keeping the binary lean (~14MB)
+- **Repository-Based**: Most commands install from repositories (official or community)
+- **Network Optional**: Core functionality works offline; network needed only for installing new commands
+- **Decentralized**: Anyone can create and host command repositories
+- **Version Management**: Commands have versions, dependencies, and lockfiles for reproducibility
+
+**Example workflow:**
+```bash
+# Built-in command works immediately
+scmd /explain main.go
+
+# Install additional commands from repositories
+scmd repo add official https://github.com/scmd/commands/raw/main
+scmd repo install official/review
+scmd /review code.py  # Now available
+```
+
+This design allows:
+- ✅ Small binary size and fast installation
+- ✅ Community-driven command ecosystem
+- ✅ Easy command discovery and sharing
+- ✅ Team-specific command repositories
+- ✅ Reproducible environments with lockfiles
+
 ## Installation
 
-### Quick Start (Recommended)
+### Quick Install
+
+Choose the method that works best for you:
+
+#### Homebrew (macOS/Linux)
+
+```bash
+brew install scmd/tap/scmd
+```
+
+#### npm (Cross-Platform)
+
+```bash
+npm install -g scmd-cli
+```
+
+#### Shell Script (wget/curl)
+
+```bash
+# Using curl
+curl -fsSL https://scmd.sh/install.sh | bash
+
+# Using wget
+wget -qO- https://scmd.sh/install.sh | bash
+```
+
+#### Linux Packages
+
+**Debian/Ubuntu:**
+```bash
+wget https://github.com/scmd/scmd/releases/latest/download/scmd_VERSION_linux_amd64.deb
+sudo dpkg -i scmd_VERSION_linux_amd64.deb
+```
+
+**Fedora/RHEL:**
+```bash
+wget https://github.com/scmd/scmd/releases/latest/download/scmd_VERSION_linux_amd64.rpm
+sudo rpm -i scmd_VERSION_linux_amd64.rpm
+```
+
+### Post-Installation
+
+1. **Verify installation:**
+   ```bash
+   scmd --version
+   ```
+
+2. **Install llama.cpp for offline usage:**
+   ```bash
+   # macOS
+   brew install llama.cpp
+
+   # Linux - build from source
+   # See: https://github.com/ggerganov/llama.cpp
+   ```
+
+3. **Try it out:**
+   ```bash
+   scmd /explain "what is a goroutine"
+   ```
+
+For detailed installation instructions, platform-specific guides, and troubleshooting, see [INSTALL.md](INSTALL.md).
+
+### Build from Source
 
 ```bash
 # Clone and build
 git clone https://github.com/scmd/scmd
 cd scmd
-go build -o scmd ./cmd/scmd
+make build
 
-# Install llama-server for inference
-# macOS:
-brew install llama.cpp
+# Install to /usr/local/bin
+sudo make install
 
-# Linux:
-# Build from source: https://github.com/ggerganov/llama.cpp
-
-# First run auto-downloads qwen3-4b model (~2.6GB)
-./scmd /explain "what is a goroutine"
-```
-
-### Install from Source
-
-```bash
-# With Go
+# Or build with Go directly
 go install github.com/scmd/scmd/cmd/scmd@latest
-
-# Then install llama-server
-brew install llama.cpp  # macOS
-```
-
-### Verify Installation
-
-```bash
-# Check backends
-./scmd backends
-
-# List models
-./scmd models list
 ```
 
 ## Model Management
@@ -109,14 +176,18 @@ Models are stored in `~/.scmd/models/` and use GPU acceleration when available (
 ## Quick Start
 
 ```bash
-# Explain code (model downloads on first run)
+# Use the built-in explain command (model downloads on first run)
 cat myfile.go | scmd explain
+scmd /explain "what is a goroutine"
 
-# Review code for issues
+# Install additional commands from the official repository
+scmd repo add official https://github.com/scmd/commands/raw/main
+scmd repo install official/review
+scmd repo install official/commit
+
+# Now use the installed commands
 git diff | scmd review
-
-# Generate commit message
-git diff --staged | scmd /gc
+git diff --staged | scmd /gc  # Generate commit message
 
 # Use with inline prompt
 echo "SELECT * FROM users" | scmd -p "optimize this SQL query"
@@ -126,6 +197,10 @@ git diff | scmd review -o review.md
 
 # Use specific backend/model
 scmd -b openai -m gpt-4 explain main.go
+
+# Discover more commands
+scmd repo search git
+scmd repo search docker
 ```
 
 ## Slash Commands
@@ -178,13 +253,26 @@ curl api.com/data | /sum
 
 ### Built-in Commands
 
-| Command | Aliases | Description |
-|---------|---------|-------------|
-| `/explain` | `/e`, `/exp` | Explain code or concepts |
-| `/review` | `/r`, `/rev` | Review code for issues |
-| `/commit` | `/gc`, `/gitc` | Generate git commit messages |
-| `/summarize` | `/s`, `/sum`, `/tldr` | Summarize text |
-| `/fix` | `/f`, `/err` | Explain and fix errors |
+Only one command is built-in with scmd - others install from repositories:
+
+| Command | Aliases | Description | Source |
+|---------|---------|-------------|--------|
+| `/explain` | `/e`, `/exp` | Explain code or concepts | Built-in ✓ |
+
+### Popular Community Commands
+
+Install additional commands from the official repository:
+
+```bash
+# Install popular commands
+scmd repo add official https://raw.githubusercontent.com/scmd/commands/main
+scmd repo install official/review        # Code review
+scmd repo install official/commit        # Git commit messages
+scmd repo install official/summarize     # Summarize text
+scmd repo install official/fix           # Explain and fix errors
+```
+
+This repository-first architecture keeps the scmd binary small while allowing the community to build and share commands.
 
 ### Managing Slash Commands
 

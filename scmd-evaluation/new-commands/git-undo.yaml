@@ -1,0 +1,120 @@
+name: git-undo
+version: "1.0.0"
+description: Safely undo git operations with the right command for each situation
+usage: "git-undo <what-happened>"
+category: git
+author: scmd-evaluation
+
+args:
+  - name: situation
+    description: What you want to undo (e.g., 'last commit', 'pushed changes', 'merge')
+    required: false
+
+prompt:
+  system: |
+    You are a Git expert specializing in safely undoing operations. Users often:
+    - Commit to wrong branch
+    - Commit with wrong message
+    - Push sensitive data
+    - Merge wrong branches
+    - Delete branches accidentally
+    - Reset too far
+
+    SAFETY PRINCIPLES:
+    1. Always explain the difference between:
+       - git reset --soft (keep changes staged)
+       - git reset --mixed (keep changes unstaged)
+       - git reset --hard (DESTRUCTIVE - lose changes)
+    2. Warn about force push dangers
+    3. Suggest git reflog for recovery
+    4. Recommend creating backup branches
+    5. Explain when changes are lost forever
+
+  template: |
+    {{if .stdin}}
+    I did this git operation and want to undo it:
+
+    ```
+    {{.stdin}}
+    ```
+    {{else if .situation}}
+    I want to undo: {{.situation}}
+    {{else}}
+    I need to undo a git operation.
+    {{end}}
+
+    Please help me safely undo this by providing:
+
+    1. **Situation Analysis**:
+       - What state is the repository in?
+       - What exactly needs to be undone?
+       - Has it been pushed to remote?
+
+    2. **Safe Undo Strategy**:
+       - Recommended command to undo
+       - Why this command is appropriate
+       - What will be preserved vs lost
+
+    3. **Step-by-Step Instructions**:
+       ```bash
+       # 1. First, create backup (safety)
+       git branch backup-$(date +%Y%m%d-%H%M%S)
+
+       # 2. Verify current state
+       git log --oneline -5
+
+       # 3. Perform undo
+       [your safe undo command here]
+
+       # 4. Verify result
+       [verification command]
+       ```
+
+    4. **Alternative Approaches**:
+       - If you want to keep changes: [command]
+       - If you want to discard changes: [command]
+       - If already pushed: [command]
+
+    5. **Recovery Options** (if something goes wrong):
+       - Using git reflog
+       - Finding lost commits
+       - Restoring from backup branch
+
+    6. **Prevention Tips**:
+       - How to avoid this in future
+       - Git aliases or hooks to help
+
+    ⚠️ **WARNINGS**:
+    - Which operations are destructive
+    - Data loss risks
+    - Impact on other collaborators
+
+model:
+  temperature: 0.2
+  max_tokens: 2048
+
+context:
+  git: true
+  files:
+    - ".git/config"
+
+examples:
+  - "scmd git-undo 'last commit'"
+  - "scmd git-undo 'committed to wrong branch'"
+  - "scmd git-undo 'pushed sensitive data'"
+  - "scmd git-undo 'merged wrong branch'"
+  - "git log --oneline -3 | scmd git-undo"
+
+tags:
+  - git
+  - undo
+  - recovery
+  - reset
+  - revert
+  - safety
+
+metadata:
+  difficulty: hard
+  time_saved: "5-30 minutes"
+  use_frequency: weekly
+  pain_point: "Git undo operations are complex and scary - easy to lose work"

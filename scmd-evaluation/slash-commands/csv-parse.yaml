@@ -1,0 +1,191 @@
+name: csv-parse
+version: "1.0.0"
+description: Parse, filter, and manipulate CSV files with awk, cut, or csvkit
+category: data-processing
+author: scmd-evaluation
+
+args:
+  - name: file
+    description: CSV file to process
+    required: false
+  - name: operation
+    description: What to do (filter, extract, sort, etc.)
+    required: false
+  - name: delimiter
+    description: Field delimiter (default: comma)
+    default: ","
+
+prompt:
+  system: |
+    You are a CSV processing expert. Help users parse and manipulate CSV files.
+
+    Tool options (from simplest to most powerful):
+
+    1. **cut** - Simple column extraction
+       - Extract columns: cut -d',' -f1,3 file.csv
+       - Fast but limited (can't handle quoted fields well)
+
+    2. **awk** - Powerful text processing
+       - Extract columns: awk -F',' '{print $1, $3}' file.csv
+       - Filter rows: awk -F',' '$3 > 100' file.csv
+       - Calculate: awk -F',' '{sum+=$2} END {print sum}' file.csv
+       - Handle headers: awk -F',' 'NR==1 {print; next} $3>100' file.csv
+
+    3. **csvkit** - CSV-specific tools (requires install)
+       - csvcut -c 1,3 file.csv  # Extract columns by number
+       - csvcut -c name,email file.csv  # Extract by name
+       - csvgrep -c status -m "active" file.csv  # Filter rows
+       - csvsort -c age file.csv  # Sort
+       - csvstat file.csv  # Statistics
+
+    4. **Miller (mlr)** - Like awk for CSV (requires install)
+       - mlr --csv cut -f name,email file.csv
+       - mlr --csv filter '$age > 18' file.csv
+       - mlr --csv stats1 -a sum -f amount file.csv
+
+    Common patterns:
+    - Skip header: awk 'NR>1 {commands}'
+    - Print header: awk 'NR==1 {print} NR>1 {filter}'
+    - Handle quoted fields: Use csvkit or mlr
+    - Different delimiter: -F';' for awk, -d';' for cut
+    - Output as table: column -t -s','
+    - Convert to JSON: Use mlr or jq
+
+    CSV gotchas:
+    - Quoted fields with commas: "Smith, John",25,"New York"
+    - Escaped quotes: "He said ""Hello"""
+    - Windows line endings: \r\n vs \n
+    - BOM (Byte Order Mark) in UTF-8 files
+    - Empty fields vs missing fields
+
+    For complex CSV:
+    - Use csvkit or mlr for quoted fields
+    - Use Python/pandas for very complex operations
+    - Always preview with head first
+
+    Provide:
+    1. The correct command for the task
+    2. Explanation of how it works
+    3. How to handle headers
+    4. Alternative tools if applicable
+    5. How to handle edge cases (quotes, etc.)
+
+  template: |
+    {{- if .file }}
+    CSV file: {{.file}}
+    {{- end }}
+
+    {{- if .operation }}
+    Operation: {{.operation}}
+    {{- end }}
+
+    {{- if .delimiter }}
+    Delimiter: {{.delimiter}}
+    {{- end }}
+
+    {{- if .stdin }}
+    Description or sample data:
+    {{.stdin}}
+    {{- end }}
+
+    Generate commands to process this CSV file.
+
+model:
+  temperature: 0.2
+  max_tokens: 800
+
+hooks:
+  pre:
+    - shell: command -v csvkit >/dev/null 2>&1 || echo "💡 Tip: Install csvkit for better CSV handling: pip install csvkit"
+    - shell: command -v mlr >/dev/null 2>&1 || echo "💡 Tip: Install miller (mlr) for powerful CSV processing: brew install miller"
+
+examples:
+  - description: "Extract specific columns"
+    input:
+      file: "users.csv"
+      operation: "extract name and email columns"
+    output: |
+      # Method 1: awk (simple, no quotes handling)
+      awk -F',' '{print $1, $3}' users.csv
+
+      # Method 2: cut (simplest)
+      cut -d',' -f1,3 users.csv
+
+      # Method 3: csvkit (handles quotes correctly)
+      csvcut -c name,email users.csv
+
+      # With header preservation:
+      awk -F',' 'NR==1 {print; next} {print $1, $3}' users.csv
+
+      # Preview first:
+      head -5 users.csv
+
+  - description: "Filter rows by condition"
+    input:
+      file: "sales.csv"
+      operation: "find sales over $1000"
+    output: |
+      # Using awk (amount in column 3)
+      awk -F',' 'NR==1 {print} NR>1 && $3 > 1000' sales.csv
+
+      # Using csvkit
+      csvgrep -c amount -r "^[1-9][0-9]{3,}$" sales.csv
+
+      # Using miller
+      mlr --csv filter '$amount > 1000' sales.csv
+
+      # Explanation:
+      - NR==1: Print header row
+      - NR>1 && $3 > 1000: Print rows where column 3 > 1000
+      - -r: Regex match for csvkit
+
+  - description: "Calculate sum/average"
+    input:
+      file: "data.csv"
+      operation: "sum of amounts column"
+    output: |
+      # Sum with awk (amount in column 2)
+      awk -F',' 'NR>1 {sum += $2} END {print "Total:", sum}' data.csv
+
+      # Average
+      awk -F',' 'NR>1 {sum += $2; count++} END {print "Average:", sum/count}' data.csv
+
+      # Using miller (easier)
+      mlr --csv stats1 -a sum,mean -f amount data.csv
+
+      # Using csvkit
+      csvstat -c amount data.csv
+
+  - description: "Sort and find top N"
+    input:
+      file: "scores.csv"
+      operation: "top 10 highest scores"
+    output: |
+      # Sort by column 2 (numeric, reverse order) and show top 10
+      (head -1 scores.csv && tail -n +2 scores.csv | sort -t',' -k2 -nr | head -10)
+
+      # Explanation:
+      - head -1: Print header
+      - tail -n +2: Skip header for sorting
+      - sort -t',' -k2 -nr: Sort by column 2, numeric, reverse
+      - head -10: Take top 10
+
+      # Using csvkit (easier)
+      csvsort -c score -r scores.csv | head -11
+
+      # Using miller
+      mlr --csv sort -nr score then head -n 10 scores.csv
+
+  - description: "Handle tab-delimited file"
+    input:
+      file: "data.tsv"
+      delimiter: "\t"
+    output: |
+      # awk with tab delimiter
+      awk -F'\t' '{print $1, $3}' data.tsv
+
+      # cut with tab
+      cut -f1,3 data.tsv
+
+      # csvkit with tab
+      csvcut -t -c 1,3 data.tsv

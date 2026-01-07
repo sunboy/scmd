@@ -147,6 +147,8 @@ nav:
       - Adding Backends: contributing/adding-backends.md
       - Adding Tools: contributing/adding-tools.md
       - Testing: contributing/testing.md
+      - Release Process: contributing/release-process.md
+      - Distribution: contributing/distribution.md
       - Pull Requests: contributing/pull-requests.md
   - Reference:
       - Command Specification: reference/command-spec.md
@@ -165,3 +167,5 @@ nav:
       - Changelog: about/changelog.md
       - Roadmap: about/roadmap.md
       - License: about/license.md
+      - CHANGELOG: ../CHANGELOG.md
+      - INSTALL Guide: ../INSTALL.md

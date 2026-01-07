@@ -1,0 +1,143 @@
+name: ssl-certificate
+version: "1.0.0"
+description: Check SSL certificates, expiration, and troubleshoot issues
+category: networking
+author: scmd-evaluation
+
+args:
+  - name: domain
+    description: Domain to check
+    required: false
+  - name: operation
+    description: What to do (check, verify, extract, convert)
+    default: "check"
+
+prompt:
+  system: |
+    You are an SSL/TLS certificate expert. Help users check and troubleshoot certificates.
+
+    Common SSL tasks:
+    1. Check certificate expiration
+    2. Verify certificate chain
+    3. Extract certificate details
+    4. Test SSL connection
+    5. Convert certificate formats
+
+    Essential commands:
+
+    **Check remote certificate**:
+    - Basic: openssl s_client -connect example.com:443
+    - Expiry: echo | openssl s_client -connect example.com:443 2>/dev/null | openssl x509 -noout -dates
+    - Details: echo | openssl s_client -connect example.com:443 2>/dev/null | openssl x509 -noout -text
+
+    **Check local certificate**:
+    - openssl x509 -in cert.pem -text -noout
+    - openssl x509 -in cert.pem -noout -dates
+    - openssl x509 -in cert.pem -noout -subject -issuer
+
+    **Verify certificate chain**:
+    - openssl verify -CAfile ca.pem cert.pem
+    - openssl s_client -connect example.com:443 -showcerts
+
+    **Test connection**:
+    - curl -v https://example.com
+    - openssl s_client -connect example.com:443 -servername example.com
+
+    **Convert formats**:
+    - PEM to DER: openssl x509 -in cert.pem -outform DER -out cert.der
+    - DER to PEM: openssl x509 -in cert.der -inform DER -out cert.pem
+    - PFX to PEM: openssl pkcs12 -in cert.pfx -out cert.pem -nodes
+
+    **Common issues**:
+    1. Expired certificate
+    2. Self-signed certificate
+    3. Hostname mismatch
+    4. Incomplete chain
+    5. Wrong intermediate certificate
+
+    Provide:
+    1. Commands to check certificate
+    2. How to interpret results
+    3. Expiration warning if applicable
+    4. Troubleshooting steps
+    5. Renewal recommendations
+
+  template: |
+    {{- if .domain }}
+    Domain: {{.domain}}
+    {{- end }}
+
+    Operation: {{.operation}}
+
+    {{- if .stdin }}
+    Context:
+    {{.stdin}}
+    {{- end }}
+
+    Generate SSL certificate commands.
+
+model:
+  temperature: 0.2
+  max_tokens: 700
+
+hooks:
+  pre:
+    - shell: command -v openssl >/dev/null 2>&1 || echo "⚠️  openssl not installed"
+
+examples:
+  - description: "Check certificate expiration"
+    input:
+      domain: "example.com"
+      operation: "check"
+    output: |
+      # Check expiration date
+      $ echo | openssl s_client -connect example.com:443 -servername example.com 2>/dev/null | openssl x509 -noout -dates
+
+      # Get days until expiration
+      $ echo | openssl s_client -connect example.com:443 -servername example.com 2>/dev/null | openssl x509 -noout -checkend 0 && echo "Valid" || echo "Expired"
+
+      # Full certificate details
+      $ echo | openssl s_client -connect example.com:443 -servername example.com 2>/dev/null | openssl x509 -noout -text
+
+      # Quick check with curl
+      $ curl -vI https://example.com 2>&1 | grep -E "expire|issuer"
+
+      # Check expiration in days
+      $ echo | openssl s_client -connect example.com:443 -servername example.com 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2 | xargs -I{} date -j -f "%b %d %T %Y %Z" "{}" +%s | xargs -I{} echo $((({} - $(date +%s)) / 86400)) days
+
+  - description: "Verify SSL connection"
+    input:
+      domain: "example.com"
+      operation: "verify"
+    output: |
+      # Test SSL connection
+      $ openssl s_client -connect example.com:443 -servername example.com
+
+      # Verify certificate chain
+      $ openssl s_client -connect example.com:443 -servername example.com -showcerts
+
+      # Check for common issues
+      $ curl -v https://example.com 2>&1 | grep -E "certificate|SSL|TLS"
+
+      # Specific checks:
+      # - Certificate matches domain
+      # - Not expired
+      # - Trusted CA
+      # - Complete chain
+
+  - description: "Extract certificate details"
+    input:
+      domain: "example.com"
+      operation: "extract"
+    output: |
+      # Save certificate
+      $ echo | openssl s_client -connect example.com:443 -servername example.com 2>/dev/null | openssl x509 > example.com.crt
+
+      # Extract details
+      $ openssl x509 -in example.com.crt -noout -subject
+      $ openssl x509 -in example.com.crt -noout -issuer
+      $ openssl x509 -in example.com.crt -noout -dates
+      $ openssl x509 -in example.com.crt -noout -fingerprint
+
+      # Get SANs (Subject Alternative Names)
+      $ openssl x509 -in example.com.crt -noout -text | grep -A1 "Subject Alternative Name"

@@ -1,0 +1,141 @@
+name: sed-replace
+version: "1.0.0"
+description: Generate sed commands for text replacement and manipulation
+category: text-processing
+author: scmd-evaluation
+
+args:
+  - name: find
+    description: Pattern to find
+    required: false
+  - name: replace
+    description: Replacement text
+    required: false
+  - name: file
+    description: File to operate on
+    required: false
+
+prompt:
+  system: |
+    You are a sed (stream editor) expert. Sed syntax is cryptic and hard to remember.
+
+    Help users with text replacement, deletion, and manipulation using sed.
+
+    Common patterns:
+    - Simple replace: sed 's/find/replace/' file
+    - Replace all (global): sed 's/find/replace/g' file
+    - Case-insensitive: sed 's/find/replace/I' file
+    - In-place edit: sed -i '' 's/find/replace/g' file (macOS needs '')
+    - Delete lines: sed '/pattern/d' file
+    - Print specific lines: sed -n '1,10p' file
+    - Replace on specific line: sed '5s/find/replace/' file
+    - Multiple commands: sed -e 's/a/b/' -e 's/c/d/' file
+
+    Special characters that need escaping:
+    - / $ . * [ ] ^ { } + ? | ( ) \
+    - Use \ before these: \/  \\  \$  \.  etc.
+    - Or use different delimiter: s|find|replace| or s#find#replace#
+
+    Common use cases:
+    - Remove blank lines: sed '/^$/d'
+    - Remove comments: sed '/^#/d'
+    - Replace paths with / in them: sed 's|/old/path|/new/path|g'
+    - Add text before line: sed 's/^/prefix: /'
+    - Add text after line: sed 's/$/suffix/'
+    - Delete trailing whitespace: sed 's/[ \t]*$//'
+    - Delete specific lines: sed '5d' (line 5) or sed '1,3d' (lines 1-3)
+    - Insert line: sed '5i\new line text'
+    - Append line: sed '5a\new line text'
+
+    macOS vs Linux:
+    - macOS sed (BSD): sed -i '' 's/a/b/' file
+    - GNU sed (Linux): sed -i 's/a/b/' file
+
+    Provide:
+    1. The correct sed command
+    2. Explanation of regex pattern
+    3. Which characters need escaping
+    4. In-place edit version
+    5. Test command (without -i) to preview changes
+
+  template: |
+    {{- if .stdin }}
+    Text or pattern description:
+    {{.stdin}}
+    {{- end }}
+
+    {{- if .find }}
+    Find pattern: {{.find}}
+    {{- end }}
+
+    {{- if .replace }}
+    Replace with: {{.replace}}
+    {{- end }}
+
+    {{- if .file }}
+    File: {{.file}}
+    {{- end }}
+
+    Generate the sed command to accomplish this task.
+
+model:
+  temperature: 0.2
+  max_tokens: 600
+
+examples:
+  - description: "Replace text with special characters"
+    input:
+      find: "/usr/local/bin"
+      replace: "/opt/bin"
+      file: "config.sh"
+    output: |
+      # Use | as delimiter to avoid escaping /
+      sed 's|/usr/local/bin|/opt/bin|g' config.sh
+
+      # Preview changes first:
+      sed 's|/usr/local/bin|/opt/bin|g' config.sh | less
+
+      # Edit in-place (macOS):
+      sed -i '' 's|/usr/local/bin|/opt/bin|g' config.sh
+
+      # Edit in-place (Linux):
+      sed -i 's|/usr/local/bin|/opt/bin|g' config.sh
+
+      # With backup (macOS):
+      sed -i .bak 's|/usr/local/bin|/opt/bin|g' config.sh
+
+  - description: "Remove blank lines and comments"
+    input:
+      find: "blank lines and comments"
+      file: "script.sh"
+    output: |
+      # Remove blank lines and comment lines
+      sed -e '/^$/d' -e '/^#/d' script.sh
+
+      # Explanation:
+      - -e: Multiple commands
+      - /^$/d: Delete lines matching empty (^ = start, $ = end)
+      - /^#/d: Delete lines starting with #
+      - d: Delete command
+
+  - description: "Add prefix to all lines"
+    input:
+      replace: "Add 'INFO:' prefix"
+    output: |
+      sed 's/^/INFO: /' file.log
+
+      # Explanation:
+      - ^: Start of line
+      - s/^/INFO: /: Substitute start of line with "INFO: "
+      - Adds prefix to every line
+
+  - description: "Replace only on specific lines"
+    input:
+      find: "error"
+      replace: "warning"
+    output: |
+      # Replace only on lines 10-20
+      sed '10,20s/error/warning/g' file.log
+
+      # Replace only on lines containing "ERROR"
+      sed '/ERROR/s/error/warning/g' file.log

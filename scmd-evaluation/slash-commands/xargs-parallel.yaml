@@ -1,0 +1,215 @@
+name: xargs-parallel
+version: "1.0.0"
+description: Run commands in parallel using xargs
+category: performance
+author: scmd-evaluation
+
+args:
+  - name: command
+    description: Command to run in parallel
+    required: false
+  - name: max_procs
+    description: Number of parallel processes (default: CPU cores)
+    required: false
+  - name: input_file
+    description: File containing inputs (one per line)
+    required: false
+
+prompt:
+  system: |
+    You are an xargs and GNU Parallel expert. Help users run commands efficiently in parallel.
+
+    Why parallel execution:
+    - Utilize multiple CPU cores
+    - Process large datasets faster
+    - Reduce total execution time dramatically
+    - Example: 100 tasks × 10 sec = 1000 sec sequential, but only ~250 sec on 4 cores
+
+    **xargs** (built-in, available everywhere):
+    - Basic: echo "file1 file2" | xargs -n 1 command
+    - Parallel: xargs -P 4 -n 1 command
+    - With placeholder: xargs -I {} command {}
+    - Null-separated: xargs -0 (for filenames with spaces)
+
+    xargs flags:
+    - -P N: Run N processes in parallel (0 = as many as possible)
+    - -n N: Max N arguments per command
+    - -I {}: Replacement string (like {} in find -exec)
+    - -t: Print command before executing (debug)
+    - -p: Prompt before executing (interactive)
+    - -0: Input items separated by null (from find -print0)
+
+    **GNU Parallel** (more powerful, requires install):
+    - Better syntax: parallel command ::: input1 input2 input3
+    - Progress: --progress
+    - Job control: -j 4 (4 parallel jobs)
+    - Dry-run: --dry-run
+    - Resume: --resume --joblog log.txt
+    - Retry: --retry-failed --joblog log.txt
+
+    Common patterns:
+
+    1. Process files in parallel:
+       find . -name "*.jpg" | xargs -P 4 -I {} convert {} {}.png
+
+    2. Run command for each line:
+       cat urls.txt | xargs -P 10 -I {} curl -O {}
+
+    3. With find (safe for filenames with spaces):
+       find . -type f -print0 | xargs -0 -P 4 -I {} process {}
+
+    4. GNU Parallel syntax:
+       parallel -j 4 convert {} {.}.png ::: *.jpg
+       cat urls.txt | parallel -j 10 curl -O {}
+
+    5. With progress (GNU Parallel):
+       parallel --progress -j 4 command ::: input*
+
+    Best practices:
+    - Start with -P 4 or less, increase if CPU isn't maxed
+    - Use -print0 and -0 for filenames with spaces
+    - Test with one item first
+    - Use --dry-run with parallel
+    - Monitor with top/htop
+    - Consider I/O bottlenecks (disk, network)
+
+    Provide:
+    1. The parallel command (xargs or GNU parallel)
+    2. Explanation of parallel execution
+    3. How to tune number of processes
+    4. Safety considerations
+    5. How to monitor progress
+
+  template: |
+    {{- if .command }}
+    Command to parallelize: {{.command}}
+    {{- end }}
+
+    {{- if .max_procs }}
+    Parallel processes: {{.max_procs}}
+    {{- end }}
+
+    {{- if .input_file }}
+    Input file: {{.input_file}}
+    {{- end }}
+
+    {{- if .stdin }}
+    Task description:
+    {{.stdin}}
+    {{- end }}
+
+    Generate parallel execution commands using xargs or GNU Parallel.
+
+model:
+  temperature: 0.2
+  max_tokens: 800
+
+hooks:
+  pre:
+    - shell: command -v parallel >/dev/null 2>&1 || echo "💡 Tip: Install GNU Parallel for better parallel execution: brew install parallel"
+    - shell: echo "CPU cores: $(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 'unknown')"
+
+examples:
+  - description: "Convert images in parallel"
+    input:
+      command: "convert image.jpg image.png"
+      stdin: "Convert all JPG files to PNG using ImageMagick"
+    output: |
+      # Using xargs (built-in)
+      find . -name "*.jpg" -print0 | xargs -0 -P 4 -I {} sh -c 'convert "$1" "${1%.jpg}.png"' _ {}
+
+      # Using GNU Parallel (recommended)
+      parallel -j 4 convert {} {.}.png ::: *.jpg
+
+      # With progress bar:
+      parallel --progress -j 4 convert {} {.}.png ::: *.jpg
+
+      # Explanation:
+      - -P 4 / -j 4: Run 4 processes in parallel
+      - {.}: Filename without extension (parallel only)
+      - -print0 and -0: Handle filenames with spaces safely
+
+      # Test with one file first:
+      echo "test.jpg" | xargs -I {} convert {} {}.png
+
+  - description: "Download URLs in parallel"
+    input:
+      input_file: "urls.txt"
+      max_procs: "10"
+    output: |
+      # Using xargs
+      cat urls.txt | xargs -P 10 -n 1 curl -O
+
+      # Using GNU Parallel (better progress)
+      parallel -j 10 --progress curl -O :::: urls.txt
+
+      # With retry on failure (parallel only):
+      parallel -j 10 --retry-failed --joblog download.log curl -O :::: urls.txt
+
+      # Explanation:
+      - -P 10 / -j 10: Download 10 URLs simultaneously
+      - -n 1: One URL per curl command
+      - :::: reads input from file
+      - --retry-failed: Resume failed downloads
+
+  - description: "Process log files in parallel"
+    input:
+      command: "grep ERROR log.txt | wc -l"
+      stdin: "Count errors in all log files"
+    output: |
+      # Using xargs
+      find /var/log -name "*.log" -print0 | \
+        xargs -0 -P 4 -I {} sh -c 'echo "$1: $(grep -c ERROR "$1")"' _ {}
+
+      # Using GNU Parallel
+      parallel 'echo {}: $(grep -c ERROR {})' ::: /var/log/*.log
+
+      # With totals (parallel):
+      parallel 'grep ERROR {}' ::: /var/log/*.log | wc -l
+
+      # Explanation:
+      - Process each log file in parallel
+      - Show count per file
+      - Can aggregate totals at the end
+
+  - description: "Batch process with custom script"
+    input:
+      stdin: "Run process-video.sh on all MP4 files using all CPU cores"
+    output: |
+      # Using xargs with all available cores
+      find . -name "*.mp4" -print0 | xargs -0 -P 0 -I {} ./process-video.sh {}
+
+      # Using GNU Parallel with progress
+      parallel --progress -j+0 ./process-video.sh {} ::: *.mp4
+
+      # Explanation:
+      - -P 0 / -j+0: Use all available CPU cores
+      - --progress: Show progress bar with time estimate
+      - +0: Use all cores (parallel syntax)
+
+      # Monitor CPU usage:
+      # Open another terminal and run: htop or top
+
+      # Safer: Test with 2 cores first
+      find . -name "*.mp4" -print0 | head -2 -z | xargs -0 -P 2 -I {} ./process-video.sh {}
+
+  - description: "Complex pipeline with multiple commands"
+    input:
+      stdin: "Resize images, optimize them, and generate thumbnails"
+    output: |
+      # Using GNU Parallel with multiple steps
+      parallel -j 4 '
+        convert {} -resize 1920x1080 resized/{} && \
+        optipng resized/{} && \
+        convert resized/{} -thumbnail 200x200 thumbs/{/.}_thumb.png
+      ' ::: *.png
+
+      # Using xargs
+      find . -name "*.png" -print0 | xargs -0 -P 4 -I {} sh -c '
+        convert "$1" -resize 1920x1080 "resized/$1" && \
+        optipng "resized/$1" && \
+        convert "resized/$1" -thumbnail 200x200 "thumbs/${1%.png}_thumb.png"
+      ' _ {}
+
+      # Dry-run first (parallel):
+      parallel --dry-run -j 4 'echo Processing: {}' ::: *.png

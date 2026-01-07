@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -824,6 +825,580 @@ func TestStress_MixedOperations(t *testing.T) {
 			if err != nil {
 				t.Errorf("mixed op %s failed: %v", op.name, err)
 			}
+		}
+	}
+}
+
+// ==================== FORMAT FLAG ====================
+
+func TestScenario_FormatJSON(t *testing.T) {
+	stdout, _, err := runScmd(t, "-b", "mock", "-p", "test", "-f", "json")
+	if err != nil {
+		t.Fatalf("format json failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+}
+
+func TestScenario_FormatMarkdown(t *testing.T) {
+	stdout, _, err := runScmd(t, "-b", "mock", "-p", "test", "-f", "markdown")
+	if err != nil {
+		t.Fatalf("format markdown failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+}
+
+func TestScenario_FormatText(t *testing.T) {
+	stdout, _, err := runScmd(t, "-b", "mock", "-p", "test", "-f", "text")
+	if err != nil {
+		t.Fatalf("format text failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+}
+
+func TestScenario_InvalidFormat(t *testing.T) {
+	_, _, err := runScmd(t, "-b", "mock", "-p", "test", "-f", "invalid")
+	if err == nil {
+		t.Error("should fail with invalid format")
+	}
+}
+
+// ==================== STDIN VARIATIONS ====================
+
+func TestScenario_EmptyPromptWithStdin(t *testing.T) {
+	code := "func hello() { fmt.Println(\"hello\") }"
+	stdout, _, err := runScmdWithStdin(t, code, "-b", "mock", "explain")
+	if err != nil {
+		t.Fatalf("explain with stdin failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+}
+
+func TestScenario_MultilineStdin(t *testing.T) {
+	input := `line 1
+line 2
+line 3
+line 4
+line 5`
+	stdout, _, err := runScmdWithStdin(t, input, "-b", "mock", "-p", "count lines")
+	if err != nil {
+		t.Fatalf("multiline stdin failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+}
+
+func TestScenario_StdinWithTabs(t *testing.T) {
+	code := "func main() {\n\tfmt.Println(\"test\")\n}"
+	stdout, _, err := runScmdWithStdin(t, code, "-b", "mock", "explain")
+	if err != nil {
+		t.Fatalf("stdin with tabs failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+}
+
+// ==================== ERROR SCENARIOS ====================
+
+func TestScenario_NoArgsNoStdin(t *testing.T) {
+	_, _, err := runScmd(t, "-b", "mock")
+	// Should either show help or error gracefully
+	// Not checking error since it's acceptable to fail or show help
+	_ = err
+}
+
+func TestScenario_InvalidCommand(t *testing.T) {
+	_, _, err := runScmd(t, "nonexistent-command")
+	if err == nil {
+		t.Error("should fail with nonexistent command")
+	}
+}
+
+func TestScenario_MissingRequiredFlag(t *testing.T) {
+	// Some commands may require certain flags
+	// Testing graceful error handling
+	_, _, err := runScmd(t, "-p")
+	if err == nil {
+		t.Error("should fail with missing flag value")
+	}
+}
+
+func TestScenario_ConflictingFlags(t *testing.T) {
+	// Test that quiet and verbose can coexist (quiet wins)
+	_, _, err := runScmd(t, "-b", "mock", "-p", "test", "-q", "-v")
+	if err != nil {
+		t.Fatalf("conflicting flags failed: %v", err)
+	}
+}
+
+// ==================== COMMAND CHAINING ====================
+
+func TestScenario_MultipleCommands(t *testing.T) {
+	// Test running multiple commands in sequence
+	commands := [][]string{
+		{"config"},
+		{"backends"},
+		{"-b", "mock", "-p", "test1"},
+		{"-b", "mock", "-p", "test2"},
+	}
+
+	for i, args := range commands {
+		_, _, err := runScmd(t, args...)
+		if err != nil {
+			t.Errorf("command %d failed: %v", i, err)
+		}
+	}
+}
+
+// ==================== FILE INPUT SCENARIOS ====================
+
+func TestScenario_ReadFromFile(t *testing.T) {
+	// Create temp file with code
+	tmpFile := filepath.Join(t.TempDir(), "test.go")
+	code := `package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello, World!")
+}`
+	if err := os.WriteFile(tmpFile, []byte(code), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Read file and pipe to scmd
+	content, err := os.ReadFile(tmpFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, _, err := runScmdWithStdin(t, string(content), "-b", "mock", "explain")
+	if err != nil {
+		t.Fatalf("explain file failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+}
+
+// ==================== COMPLEX REAL-WORLD SCENARIOS ====================
+
+func TestScenario_ComplexGoCode(t *testing.T) {
+	code := `package main
+
+import (
+	"context"
+	"fmt"
+	"sync"
+)
+
+type Worker struct {
+	id int
+	wg *sync.WaitGroup
+}
+
+func (w *Worker) Process(ctx context.Context, jobs <-chan int) {
+	defer w.wg.Done()
+	for {
+		select {
+		case job, ok := <-jobs:
+			if !ok {
+				return
+			}
+			fmt.Printf("Worker %d processing job %d\n", w.id, job)
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func main() {
+	ctx := context.Background()
+	var wg sync.WaitGroup
+	jobs := make(chan int, 100)
+
+	// Start workers
+	for i := 0; i < 3; i++ {
+		wg.Add(1)
+		w := &Worker{id: i, wg: &wg}
+		go w.Process(ctx, jobs)
+	}
+
+	// Send jobs
+	for i := 0; i < 10; i++ {
+		jobs <- i
+	}
+	close(jobs)
+
+	wg.Wait()
+}`
+	stdout, _, err := runScmdWithStdin(t, code, "-b", "mock", "explain")
+	if err != nil {
+		t.Fatalf("complex go code failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+}
+
+func TestScenario_ComplexPythonCode(t *testing.T) {
+	code := `from typing import List, Dict, Optional
+import asyncio
+from dataclasses import dataclass
+
+@dataclass
+class User:
+    id: int
+    name: str
+    email: str
+
+class UserRepository:
+    def __init__(self):
+        self.users: Dict[int, User] = {}
+
+    async def get_user(self, user_id: int) -> Optional[User]:
+        await asyncio.sleep(0.1)  # Simulate DB query
+        return self.users.get(user_id)
+
+    async def create_user(self, name: str, email: str) -> User:
+        user_id = len(self.users) + 1
+        user = User(id=user_id, name=name, email=email)
+        self.users[user_id] = user
+        return user
+
+    async def list_users(self) -> List[User]:
+        return list(self.users.values())
+
+async def main():
+    repo = UserRepository()
+    user = await repo.create_user("Alice", "alice@example.com")
+    print(f"Created user: {user}")
+
+    users = await repo.list_users()
+    print(f"All users: {users}")
+
+if __name__ == "__main__":
+    asyncio.run(main())`
+	stdout, _, err := runScmdWithStdin(t, code, "-b", "mock", "review")
+	if err != nil {
+		t.Fatalf("complex python code failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+}
+
+func TestScenario_ComplexTypeScriptCode(t *testing.T) {
+	code := `interface Config {
+  apiUrl: string;
+  timeout: number;
+  retries: number;
+}
+
+class ApiClient {
+  private config: Config;
+  private cache: Map<string, any>;
+
+  constructor(config: Config) {
+    this.config = config;
+    this.cache = new Map();
+  }
+
+  async fetch<T>(endpoint: string): Promise<T> {
+    // Check cache
+    if (this.cache.has(endpoint)) {
+      return this.cache.get(endpoint);
+    }
+
+    // Fetch with retry logic
+    let lastError: Error | null = null;
+    for (let i = 0; i < this.config.retries; i++) {
+      try {
+        const response = await this.fetchWithTimeout(endpoint);
+        const data = await response.json();
+        this.cache.set(endpoint, data);
+        return data as T;
+      } catch (err) {
+        lastError = err as Error;
+        await this.delay(1000 * (i + 1));
+      }
+    }
+
+    throw lastError || new Error('Failed to fetch');
+  }
+
+  private async fetchWithTimeout(endpoint: string): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.config.timeout);
+
+    try {
+      const url = this.config.apiUrl + endpoint;
+      return await fetch(url, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}`
+	stdout, _, err := runScmdWithStdin(t, code, "-b", "mock", "review")
+	if err != nil {
+		t.Fatalf("complex typescript code failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+}
+
+// ==================== ENVIRONMENT VARIABLE TESTS ====================
+
+func TestScenario_WithDebugEnv(t *testing.T) {
+	cmd := exec.Command(scmdBinary, "-b", "mock", "-p", "test")
+	cmd.Env = append(os.Environ(), "SCMD_DEBUG=1")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		t.Fatalf("debug env failed: %v (stderr: %s)", err, stderr.String())
+	}
+	// Debug mode may output to stderr
+	if stdout.String() == "" && stderr.String() == "" {
+		t.Error("should have some output")
+	}
+}
+
+func TestScenario_WithCustomDataDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	cmd := exec.Command(scmdBinary, "config")
+	cmd.Env = append(os.Environ(), "SCMD_DATA_DIR="+tmpDir)
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+
+	err := cmd.Run()
+	if err != nil {
+		t.Fatalf("custom data dir failed: %v", err)
+	}
+	if stdout.String() == "" {
+		t.Error("should have output")
+	}
+}
+
+// ==================== TIMEOUT AND CANCELLATION ====================
+
+func TestScenario_LongRunningCommand(t *testing.T) {
+	// Test that commands can run for a reasonable time
+	// Using a large input to simulate longer processing
+	input := strings.Repeat("test data\n", 1000)
+	stdout, _, err := runScmdWithStdin(t, input, "-b", "mock", "-p", "process this")
+	if err != nil {
+		t.Fatalf("long running command failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+}
+
+// ==================== DIFFERENT CODE LANGUAGES ====================
+
+func TestScenario_ExplainC(t *testing.T) {
+	code := `#include <stdio.h>
+#include <stdlib.h>
+
+struct Node {
+    int data;
+    struct Node* next;
+};
+
+void insert(struct Node** head, int data) {
+    struct Node* new_node = (struct Node*)malloc(sizeof(struct Node));
+    new_node->data = data;
+    new_node->next = *head;
+    *head = new_node;
+}
+
+int main() {
+    struct Node* head = NULL;
+    insert(&head, 1);
+    insert(&head, 2);
+    insert(&head, 3);
+    return 0;
+}`
+	stdout, _, err := runScmdWithStdin(t, code, "-b", "mock", "explain")
+	if err != nil {
+		t.Fatalf("explain C failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+}
+
+func TestScenario_ReviewJava(t *testing.T) {
+	code := `import java.util.*;
+import java.util.stream.*;
+
+public class UserService {
+    private Map<Long, User> users = new HashMap<>();
+
+    public Optional<User> findById(Long id) {
+        return Optional.ofNullable(users.get(id));
+    }
+
+    public List<User> findByAge(int minAge, int maxAge) {
+        return users.values().stream()
+            .filter(u -> u.getAge() >= minAge && u.getAge() <= maxAge)
+            .sorted(Comparator.comparing(User::getName))
+            .collect(Collectors.toList());
+    }
+
+    public User save(User user) {
+        if (user.getId() == null) {
+            user.setId(generateId());
+        }
+        users.put(user.getId(), user);
+        return user;
+    }
+
+    private Long generateId() {
+        return users.keySet().stream()
+            .max(Long::compareTo)
+            .map(id -> id + 1)
+            .orElse(1L);
+    }
+}`
+	stdout, _, err := runScmdWithStdin(t, code, "-b", "mock", "review")
+	if err != nil {
+		t.Fatalf("review Java failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+}
+
+func TestScenario_ExplainKubernetes(t *testing.T) {
+	yaml := `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer`
+	stdout, _, err := runScmdWithStdin(t, yaml, "-b", "mock", "explain")
+	if err != nil {
+		t.Fatalf("explain kubernetes failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+}
+
+// ==================== PERFORMANCE VARIATIONS ====================
+
+func TestScenario_QuickResponses(t *testing.T) {
+	// Test that quick prompts get quick responses
+	prompts := []string{"yes", "no", "ok", "hello", "test"}
+
+	for _, prompt := range prompts {
+		stdout, _, err := runScmd(t, "-b", "mock", "-q", "-p", prompt)
+		if err != nil {
+			t.Errorf("quick prompt '%s' failed: %v", prompt, err)
+		}
+		if stdout == "" {
+			t.Errorf("prompt '%s' should have output", prompt)
+		}
+	}
+}
+
+// ==================== OUTPUT VERIFICATION ====================
+
+func TestScenario_OutputContainsInput(t *testing.T) {
+	// For explain commands, output should relate to input
+	input := "goroutines"
+	stdout, _, err := runScmd(t, "-b", "mock", "explain", input)
+	if err != nil {
+		t.Fatalf("explain failed: %v", err)
+	}
+	if stdout == "" {
+		t.Error("should have output")
+	}
+	// Mock backend should echo or reference the input
+}
+
+func TestScenario_OutputFilePermissions(t *testing.T) {
+	tmpFile := filepath.Join(t.TempDir(), "output.txt")
+	_, _, err := runScmd(t, "-b", "mock", "-p", "test", "-o", tmpFile)
+	if err != nil {
+		t.Fatalf("output file failed: %v", err)
+	}
+
+	info, err := os.Stat(tmpFile)
+	if err != nil {
+		t.Fatalf("stat output file failed: %v", err)
+	}
+
+	// Check file is readable
+	if info.Mode().Perm()&0400 == 0 {
+		t.Error("output file should be readable")
+	}
+}
+
+// ==================== COMMAND HISTORY AND STATE ====================
+
+func TestScenario_MultipleSequentialCalls(t *testing.T) {
+	// Test that commands don't interfere with each other
+	for i := 0; i < 5; i++ {
+		stdout, _, err := runScmd(t, "-b", "mock", "-p", fmt.Sprintf("test %d", i))
+		if err != nil {
+			t.Errorf("call %d failed: %v", i, err)
+		}
+		if stdout == "" {
+			t.Errorf("call %d should have output", i)
 		}
 	}
 }

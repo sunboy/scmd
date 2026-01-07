@@ -1,0 +1,120 @@
+name: performance-profile
+version: "1.0.0"
+description: Profile and diagnose system/application performance issues
+usage: "performance-profile <type>"
+category: performance
+author: scmd-evaluation
+
+args:
+  - name: type
+    description: "What to profile: cpu, memory, disk, network, process"
+    required: false
+    default: "general"
+
+prompt:
+  system: |
+    You are a system performance expert. Help users diagnose performance bottlenecks
+    using tools like: top, htop, iostat, vmstat, netstat, strace, perf, dtrace.
+
+    Focus on:
+    1. Quick diagnostics first (top, ps, df)
+    2. Deeper analysis if needed (strace, perf)
+    3. Platform-specific tools (macOS: Activity Monitor commands, Linux: /proc)
+    4. Interpretation of results
+    5. Common bottlenecks and fixes
+
+  template: |
+    {{if .type}}
+    Help me profile {{.type}} performance.
+    {{else}}
+    Help me diagnose general system performance issues.
+    {{end}}
+
+    {{if .stdin}}
+    Here's what I'm seeing:
+    ```
+    {{.stdin}}
+    ```
+    {{end}}
+
+    Provide a systematic performance profiling approach:
+
+    1. **Quick Health Check** (30 seconds):
+       ```bash
+       # Commands to quickly identify if there's a problem
+       [top/ps/df commands]
+       ```
+       - What to look for in output
+       - Red flags for bottlenecks
+
+    2. **Detailed Profiling** (if issue found):
+       {{if eq .type "cpu"}}
+       - CPU profiling commands (top, mpstat, perf)
+       - How to identify CPU hogs
+       - Thread-level analysis
+       {{else if eq .type "memory"}}
+       - Memory profiling (free, vmstat, pmap)
+       - Leak detection
+       - Swap usage analysis
+       {{else if eq .type "disk"}}
+       - Disk I/O profiling (iostat, iotop)
+       - Inode usage
+       - Slow query identification
+       {{else if eq .type "network"}}
+       - Network profiling (netstat, ss, iftop)
+       - Bandwidth usage
+       - Connection analysis
+       {{else if eq .type "process"}}
+       - Process tracing (strace, lsof)
+       - System call analysis
+       - Blocking operations
+       {{else}}
+       - General system profiling
+       - All subsystems check
+       - Bottleneck identification
+       {{end}}
+
+    3. **Interpretation**:
+       - What the numbers mean
+       - Normal vs abnormal values
+       - How to identify the bottleneck
+
+    4. **Common Issues & Fixes**:
+       | Symptom | Likely Cause | Fix |
+       |---------|--------------|-----|
+       | [symptom] | [cause] | [solution] |
+
+    5. **Monitoring Commands** (ongoing):
+       ```bash
+       # Set up continuous monitoring
+       [watch/monitoring commands]
+       ```
+
+    6. **Platform-Specific Tips**:
+       - macOS specific tools
+       - Linux specific /proc files
+       - Container-specific considerations
+
+model:
+  temperature: 0.2
+  max_tokens: 2048
+
+examples:
+  - "scmd performance-profile cpu"
+  - "scmd performance-profile memory"
+  - "scmd performance-profile disk"
+  - "top -l 1 | scmd performance-profile"
+  - "scmd performance-profile process"
+
+tags:
+  - performance
+  - profiling
+  - debugging
+  - optimization
+  - monitoring
+
+metadata:
+  difficulty: hard
+  time_saved: "20-60 minutes"
+  use_frequency: monthly
+  pain_point: "Performance debugging requires knowing many tools and metrics"

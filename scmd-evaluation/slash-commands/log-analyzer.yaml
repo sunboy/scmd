@@ -1,0 +1,292 @@
+name: log-analyzer
+version: "1.0.0"
+description: Analyze log files using awk, sed, grep with tool calling
+category: devops
+author: scmd-evaluation
+
+args:
+  - name: log_file
+    description: Log file to analyze
+    required: false
+  - name: analysis_type
+    description: Type of analysis (errors, patterns, stats, timeline)
+    default: "errors"
+
+prompt:
+  system: |
+    You are a log analysis expert with access to tools to read and analyze log files.
+
+    Log analysis often requires:
+    1. Understanding log format first
+    2. Identifying patterns (timestamps, levels, messages)
+    3. Extracting specific information
+    4. Aggregating and counting
+    5. Finding anomalies or errors
+
+    Tool calling strategy:
+    1. Use read_file to sample the log (first 50 lines)
+    2. Identify format (Apache, nginx, syslog, application, JSON)
+    3. Build appropriate parsing command (awk/sed/grep)
+    4. Provide statistics and insights
+    5. Suggest monitoring commands
+
+    Common log formats:
+
+    **Apache/nginx access log**:
+    192.168.1.1 - - [01/Jan/2024:12:00:00 +0000] "GET /page HTTP/1.1" 200 1234
+
+    **Syslog**:
+    Jan  1 12:00:00 hostname service[1234]: message
+
+    **Application log**:
+    2024-01-01 12:00:00 INFO [module] Message
+    2024-01-01 12:00:01 ERROR [module] Error message
+
+    **JSON log**:
+    {"timestamp":"2024-01-01T12:00:00Z","level":"ERROR","message":"..."}
+
+    Analysis techniques:
+
+    **1. Error frequency**:
+    grep -i "error\|fail\|exception" app.log | wc -l
+    awk '/ERROR/ {errors++} END {print errors}' app.log
+
+    **2. Top errors**:
+    grep ERROR app.log | sort | uniq -c | sort -rn | head -10
+
+    **3. Errors by hour**:
+    awk '/ERROR/ {print $1, $2}' app.log | cut -d: -f1 | sort | uniq -c
+
+    **4. Response time stats (nginx)**:
+    awk '{print $NF}' access.log | awk '{sum+=$1; count++} END {print "Avg:", sum/count}'
+
+    **5. Status code distribution**:
+    awk '{print $9}' access.log | sort | uniq -c | sort -rn
+
+    **6. Top IPs**:
+    awk '{print $1}' access.log | sort | uniq -c | sort -rn | head -10
+
+    **7. Timeline of events**:
+    grep -E "ERROR|WARN" app.log | awk '{print $1, $2}' | uniq -c
+
+    **8. JSON log parsing**:
+    jq -r 'select(.level=="ERROR") | .message' app.log
+    jq -r '[.timestamp, .level, .message] | @csv' app.log
+
+    Provide:
+    1. Log format identification
+    2. Relevant analysis commands
+    3. Statistics and insights
+    4. Visualization suggestions (gnuplot, Excel)
+    5. Monitoring recommendations
+
+  template: |
+    {{- if .log_file }}
+    Log file: {{.log_file}}
+    {{- end }}
+
+    Analysis type: {{.analysis_type}}
+
+    {{- if .stdin }}
+    Additional context:
+    {{.stdin}}
+    {{- end }}
+
+    Use tools to:
+    1. Read sample of log file
+    2. Identify format
+    3. Generate analysis commands
+    4. Provide insights
+
+model:
+  temperature: 0.2
+  max_tokens: 1500
+
+tools:
+  - name: read_file
+    description: Read log file to identify format
+    max_lines: 50
+  - name: shell
+    whitelist:
+      - head
+      - tail
+      - wc
+      - grep
+      - awk
+
+context:
+  files: []
+
+examples:
+  - description: "Analyze application errors"
+    input:
+      log_file: "app.log"
+      analysis_type: "errors"
+      stdin: "Find all errors and their frequency"
+    output: |
+      # Step 1: Read sample to understand format
+      $ head -20 app.log
+
+      # Format identified: "2024-01-01 12:00:00 LEVEL [module] Message"
+
+      # Step 2: Count errors by type
+      $ grep ERROR app.log | awk -F'\\]' '{print $2}' | sort | uniq -c | sort -rn | head -20
+
+      # Step 3: Errors timeline (by hour)
+      $ grep ERROR app.log | awk '{print $1, $2}' | cut -d: -f1 | sort | uniq -c
+
+      # Step 4: Show recent errors
+      $ grep ERROR app.log | tail -20
+
+      # Step 5: Error rate per hour
+      $ awk '/ERROR/ {hour=substr($2,1,2); errors[hour]++} END {for (h in errors) print h":00", errors[h]}' app.log | sort
+
+      # Step 6: Find stack traces
+      $ grep -A 10 "Exception" app.log
+
+      # Summary command:
+      $ echo "Total errors: $(grep -c ERROR app.log)"
+      $ echo "Unique error types: $(grep ERROR app.log | awk -F']' '{print $2}' | sort -u | wc -l)"
+      $ echo "First error: $(grep ERROR app.log | head -1 | awk '{print $1, $2}')"
+      $ echo "Last error: $(grep ERROR app.log | tail -1 | awk '{print $1, $2}')"
+
+  - description: "Analyze web server access log"
+    input:
+      log_file: "access.log"
+      analysis_type: "stats"
+    output: |
+      # Format: Combined Log Format (Apache/nginx)
+
+      # 1. Total requests
+      $ wc -l access.log
+
+      # 2. Status code distribution
+      $ awk '{print $9}' access.log | sort | uniq -c | sort -rn
+
+      # 3. Top 10 requested URLs
+      $ awk '{print $7}' access.log | sort | uniq -c | sort -rn | head -10
+
+      # 4. Top 10 IPs
+      $ awk '{print $1}' access.log | sort | uniq -c | sort -rn | head -10
+
+      # 5. Requests per hour
+      $ awk '{print $4}' access.log | cut -d: -f2 | sort | uniq -c
+
+      # 6. 4xx errors (client errors)
+      $ awk '$9 ~ /^4/ {print $7, $9}' access.log | sort | uniq -c | sort -rn
+
+      # 7. 5xx errors (server errors)
+      $ awk '$9 ~ /^5/ {print $7, $9}' access.log | sort | uniq -c | sort -rn
+
+      # 8. Response size stats
+      $ awk '{sum+=$10; count++} END {print "Total:", sum/1024/1024, "MB, Avg:", sum/count, "bytes"}' access.log
+
+      # 9. Requests by user agent
+      $ awk -F'"' '{print $6}' access.log | sort | uniq -c | sort -rn | head -10
+
+      # 10. Potential attacks (SQL injection, XSS)
+      $ grep -iE "select.*from|<script|union.*select" access.log
+
+  - description: "Timeline analysis for incident investigation"
+    input:
+      log_file: "system.log"
+      analysis_type: "timeline"
+      stdin: "What happened between 10:00 and 11:00?"
+    output: |
+      # Extract events in time range
+      $ awk '$2 >= "10:00:00" && $2 <= "11:00:00"' system.log
+
+      # Or with date:
+      $ awk '$1" "$2 >= "2024-01-01 10:00:00" && $1" "$2 <= "2024-01-01 11:00:00"' system.log
+
+      # Timeline of severity levels
+      $ awk '$2 >= "10:00:00" && $2 <= "11:00:00" {
+        minute=substr($2,1,5);
+        level=$3;
+        timeline[minute" "level]++
+      } END {
+        for (t in timeline) print t, timeline[t]
+      }' system.log | sort
+
+      # Key events (ERROR/CRITICAL)
+      $ awk '$2 >= "10:00:00" && $2 <= "11:00:00" && ($3=="ERROR" || $3=="CRITICAL")' system.log
+
+      # Correlate events
+      $ awk '$2 >= "09:55:00" && $2 <= "11:05:00" {
+        if ($3 == "ERROR" || $3 == "WARNING" || $3 == "CRITICAL")
+          print $1, $2, $3, ":", substr($0, index($0,$4))
+      }' system.log
+
+      # Visualization suggestion:
+      # Export to CSV and graph in Excel/gnuplot
+      $ awk '$2 >= "10:00:00" && $2 <= "11:00:00" {
+        minute=substr($2,1,5);
+        counts[minute]++
+      } END {
+        for (m in counts) print m","counts[m]
+      }' system.log | sort > timeline.csv
+
+  - description: "JSON log analysis"
+    input:
+      stdin: "Parse JSON logs and find patterns"
+    output: |
+      # Sample JSON log:
+      $ head -5 app.json
+
+      # 1. Filter by level
+      $ jq -r 'select(.level=="ERROR")' app.json
+
+      # 2. Count by level
+      $ jq -r '.level' app.json | sort | uniq -c
+
+      # 3. Error messages
+      $ jq -r 'select(.level=="ERROR") | .message' app.json
+
+      # 4. Timeline of errors
+      $ jq -r 'select(.level=="ERROR") | .timestamp' app.json | cut -dT -f1,2 | cut -d: -f1,2 | sort | uniq -c
+
+      # 5. Group by service/module
+      $ jq -r 'select(.level=="ERROR") | .service' app.json | sort | uniq -c | sort -rn
+
+      # 6. Convert to CSV for analysis
+      $ jq -r '[.timestamp, .level, .service, .message] | @csv' app.json > app.csv
+
+      # 7. Complex aggregation
+      $ jq -r '
+        group_by(.service) |
+        map({
+          service: .[0].service,
+          errors: [.[] | select(.level=="ERROR")] | length,
+          warnings: [.[] | select(.level=="WARNING")] | length
+        })
+      ' app.json
+
+  - description: "Performance analysis"
+    input:
+      stdin: "Find slow requests and performance bottlenecks"
+    output: |
+      # For logs with response times (nginx, application logs)
+
+      # 1. Requests slower than 1 second
+      $ awk '$NF > 1.0 {print $7, $NF}' access.log | sort -k2 -rn
+
+      # 2. Average response time by endpoint
+      $ awk '{url=$7; time=$NF; sum[url]+=time; count[url]++} END {for (u in sum) print u, sum[u]/count[u]}' access.log | sort -k2 -rn
+
+      # 3. 95th percentile response time
+      $ awk '{print $NF}' access.log | sort -n | awk 'BEGIN{c=0} {val[c++]=$1} END {print val[int(c*0.95)]}'
+
+      # 4. Response time distribution
+      $ awk '{
+        time=$NF;
+        if (time < 0.1) bucket["<100ms"]++;
+        else if (time < 0.5) bucket["100-500ms"]++;
+        else if (time < 1.0) bucket["500ms-1s"]++;
+        else if (time < 5.0) bucket["1-5s"]++;
+        else bucket[">5s"]++;
+      } END {
+        for (b in bucket) print b, bucket[b]
+      }' access.log
+
+      # 5. Find correlations (slow requests and errors)
+      $ awk '$NF > 2.0 || $9 >= 500 {print $1, $7, $9, $NF"s"}' access.log

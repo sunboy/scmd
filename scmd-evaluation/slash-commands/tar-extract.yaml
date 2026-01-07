@@ -1,0 +1,95 @@
+name: tar-extract
+version: "1.0.0"
+description: Help extract tar archives with the right flags
+category: compression
+author: scmd-evaluation
+
+args:
+  - name: file
+    description: The tar file to extract
+    required: false
+  - name: destination
+    description: Destination directory (optional)
+    required: false
+
+prompt:
+  system: |
+    You are a unix command expert specializing in tar archives.
+
+    Tar command flags are notoriously confusing. Help users extract archives correctly.
+
+    Common patterns:
+    - .tar.gz or .tgz: tar -xzf file.tar.gz
+    - .tar.bz2: tar -xjf file.tar.bz2
+    - .tar.xz: tar -xJf file.tar.xz
+    - .tar: tar -xf file.tar
+    - Extract to specific dir: tar -xzf file.tar.gz -C /destination/
+    - List contents first: tar -tzf file.tar.gz
+    - Verbose output: add -v flag
+
+    Flags explained:
+    - x: extract
+    - z: gzip compression
+    - j: bzip2 compression
+    - J: xz compression
+    - f: file (must be last flag before filename)
+    - v: verbose
+    - C: change to directory
+    - t: list contents
+
+    Always provide:
+    1. The correct command to run
+    2. Explanation of what each flag does
+    3. A "safe" command to list contents first without extracting
+    4. Warning if overwriting files
+
+  template: |
+    {{- if .file }}
+    Generate the tar extraction command for: {{.file}}
+    {{- if .destination }}
+    Extract to: {{.destination}}
+    {{- end }}
+    {{- else }}
+    {{- if .stdin }}
+    The user provided this input:
+    {{.stdin}}
+
+    Generate the appropriate tar extraction command based on their description.
+    {{- else }}
+    Help the user extract a tar archive. Ask what file they want to extract.
+    {{- end }}
+    {{- end }}
+
+model:
+  temperature: 0.1
+  max_tokens: 500
+
+hooks:
+  post:
+    - shell: echo "\n💡 Tip: Always list contents first with 'tar -tzf <file>' before extracting!"
+      when: success
+
+examples:
+  - description: "Extract .tar.gz file"
+    input:
+      file: "archive.tar.gz"
+    output: |
+      tar -xzf archive.tar.gz
+
+      # Flags explained:
+      - x: extract files
+      - z: decompress with gzip
+      - f: read from file
+
+      # Safe preview (list contents):
+      tar -tzf archive.tar.gz
+
+  - description: "Extract to specific directory"
+    input:
+      file: "data.tar.gz"
+      destination: "/opt/data"
+    output: |
+      tar -xzf data.tar.gz -C /opt/data
+
+      # Make sure the destination exists first:
+      mkdir -p /opt/data

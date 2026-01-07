@@ -1,0 +1,215 @@
+name: find-exec-chmod
+version: "1.0.0"
+description: Find files and change permissions recursively with conditions
+category: filesystem
+author: scmd-evaluation
+
+args:
+  - name: path
+    description: Directory to search
+    default: "."
+  - name: file_perm
+    description: Permission for files (e.g., 644)
+    required: false
+  - name: dir_perm
+    description: Permission for directories (e.g., 755)
+    required: false
+
+prompt:
+  system: |
+    You are a find and chmod expert. Help users safely change permissions recursively with conditions.
+
+    Why this is complex:
+    - chmod -R applies same permission to files AND directories (wrong!)
+    - Need different permissions for files vs directories
+    - Standard pattern: dirs 755 (rwxr-xr-x), files 644 (rw-r--r--)
+    - find with -exec is the correct solution
+
+    Safe patterns:
+
+    1. Separate commands for files and dirs:
+       find /path -type f -exec chmod 644 {} \;
+       find /path -type d -exec chmod 755 {} \;
+
+    2. Combined (faster):
+       find /path -type f -exec chmod 644 {} \; -o -type d -exec chmod 755 {} \;
+
+    3. With xargs (faster for many files):
+       find /path -type f -print0 | xargs -0 chmod 644
+       find /path -type d -print0 | xargs -0 chmod 755
+
+    4. Dry-run (list files that would be changed):
+       find /path -type f ! -perm 644 -ls
+
+    find -exec syntax:
+    - {} : Placeholder for found file
+    - \; : End of -exec command (run once per file)
+    - \+ : End of -exec (run with multiple files - faster)
+
+    Permission reference:
+    - 755 (rwxr-xr-x): Standard for directories
+    - 644 (rw-r--r--): Standard for files
+    - 700 (rwx------): Private directory
+    - 600 (rw-------): Private file
+    - 777 (rwxrwxrwx): World-writable (usually bad!)
+
+    Common scenarios:
+    1. Web server: dirs 755, files 644
+    2. Private data: dirs 700, files 600
+    3. Executables: find -name "*.sh" -exec chmod +x {} \;
+    4. Remove execute: find -type f -exec chmod -x {} \;
+    5. Setuid removal: find -perm -4000 -exec chmod -s {} \;
+
+    Safety checklist:
+    1. Always do dry-run first (use -ls instead of -exec)
+    2. Test on small directory first
+    3. Make backup before changing permissions
+    4. Understand what current permissions are
+    5. Be careful with system directories!
+
+    Provide:
+    1. Dry-run command to preview changes
+    2. Find current permissions command
+    3. Actual chmod commands (files and dirs separate)
+    4. Combined command if appropriate
+    5. Security warnings if applicable
+
+  template: |
+    Change permissions recursively:
+    - Path: {{.path}}
+    {{- if .file_perm }}
+    - Files: {{.file_perm}}
+    {{- end }}
+    {{- if .dir_perm }}
+    - Directories: {{.dir_perm}}
+    {{- end }}
+
+    {{- if .stdin }}
+
+    Additional context:
+    {{.stdin}}
+    {{- end }}
+
+    Generate safe commands to change permissions recursively.
+
+model:
+  temperature: 0.2
+  max_tokens: 800
+
+examples:
+  - description: "Standard web server permissions"
+    input:
+      path: "/var/www/html"
+      file_perm: "644"
+      dir_perm: "755"
+    output: |
+      # Step 1: Preview current permissions
+      ls -la /var/www/html
+      find /var/www/html -ls | head -20
+
+      # Step 2: Check what would change (dry-run)
+      find /var/www/html -type f ! -perm 644 -ls
+      find /var/www/html -type d ! -perm 755 -ls
+
+      # Step 3: Change permissions (safest method)
+      # Files to 644
+      find /var/www/html -type f -exec chmod 644 {} \;
+
+      # Directories to 755
+      find /var/www/html -type d -exec chmod 755 {} \;
+
+      # Step 4: Verify
+      find /var/www/html -type f ! -perm 644 -ls
+      find /var/www/html -type d ! -perm 755 -ls
+
+      # Alternative: Combined command (faster)
+      find /var/www/html \( -type f -exec chmod 644 {} \; \) -o \( -type d -exec chmod 755 {} \; \)
+
+      # Alternative: With xargs (fastest for many files)
+      find /var/www/html -type f -print0 | xargs -0 chmod 644
+      find /var/www/html -type d -print0 | xargs -0 chmod 755
+
+  - description: "Make scripts executable"
+    input:
+      path: "/home/user/scripts"
+      stdin: "Make all .sh files executable"
+    output: |
+      # Preview .sh files
+      find /home/user/scripts -name "*.sh" -ls
+
+      # Check current permissions
+      find /home/user/scripts -name "*.sh" ! -perm -u+x -ls
+
+      # Make executable for owner
+      find /home/user/scripts -name "*.sh" -exec chmod u+x {} \;
+
+      # Or make executable for everyone:
+      find /home/user/scripts -name "*.sh" -exec chmod +x {} \;
+
+      # Verify
+      find /home/user/scripts -name "*.sh" -exec ls -l {} \;
+
+  - description: "Remove world-writable permissions (security)"
+    input:
+      path: "/home/user/projects"
+      stdin: "Remove world-writable permissions for security"
+    output: |
+      # ⚠️  Security: Find world-writable files
+      find /home/user/projects -type f -perm -002 -ls
+
+      # ⚠️  These files can be modified by anyone!
+
+      # Remove world-write from files
+      find /home/user/projects -type f -perm -002 -exec chmod o-w {} \;
+
+      # Remove world-write from directories
+      find /home/user/projects -type d -perm -002 -exec chmod o-w {} \;
+
+      # Verify (should return nothing)
+      find /home/user/projects -perm -002 -ls
+
+  - description: "Private directory (owner-only access)"
+    input:
+      path: "~/private"
+      file_perm: "600"
+      dir_perm: "700"
+    output: |
+      # Make directory and contents private (owner-only)
+
+      # Preview
+      find ~/private -ls | head -20
+
+      # Files to 600 (rw-------)
+      find ~/private -type f -exec chmod 600 {} \;
+
+      # Directories to 700 (rwx------)
+      find ~/private -type d -exec chmod 700 {} \;
+
+      # Verify - should show 600 for files, 700 for dirs
+      ls -la ~/private
+      find ~/private -type f ! -perm 600 -ls
+      find ~/private -type d ! -perm 700 -ls
+
+      # Explanation:
+      - 600: Owner can read/write, no one else
+      - 700: Owner can read/write/execute, no one else
+
+  - description: "Fix common permission issues"
+    input:
+      stdin: "Fix wrong permissions from Windows backup"
+    output: |
+      # Common issue: All files executable after Windows backup
+
+      # Step 1: Find files that shouldn't be executable
+      find . -type f -perm -u+x -not -name "*.sh" -not -name "*.py" -ls
+
+      # Step 2: Remove execute bit from regular files
+      find . -type f -perm -u+x -not -name "*.sh" -not -name "*.py" -exec chmod -x {} \;
+
+      # Step 3: Ensure scripts ARE executable
+      find . -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
+
+      # Step 4: Set standard permissions
+      find . -type f -exec chmod 644 {} \;
+      find . -type d -exec chmod 755 {} \;
+      find . -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod 755 {} \;

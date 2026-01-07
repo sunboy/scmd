@@ -82,7 +82,10 @@ func init() {
 	rootCmd.AddCommand(explainCmd)
 	rootCmd.AddCommand(reviewCmd)
 	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(killProcessCmd)
 	rootCmd.AddCommand(backendsCmd)
+	rootCmd.AddCommand(doctorCmd)
+	rootCmd.AddCommand(serverCmd)
 	rootCmd.AddCommand(repoCmd)
 	rootCmd.AddCommand(registryCmd)
 	rootCmd.AddCommand(updateCmd)
@@ -90,8 +93,67 @@ func init() {
 	rootCmd.AddCommand(cacheCmd)
 	rootCmd.AddCommand(slashCmd)
 	rootCmd.AddCommand(modelsCmd)
+	rootCmd.AddCommand(completionCmd)
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
+}
+
+// completionCmd generates shell completion scripts
+var completionCmd = &cobra.Command{
+	Use:   "completion [bash|zsh|fish|powershell]",
+	Short: "Generate shell completion scripts",
+	Long: `Generate shell completion scripts for scmd.
+
+To load completions:
+
+Bash:
+  $ source <(scmd completion bash)
+
+  # To load completions for each session, execute once:
+  # Linux:
+  $ scmd completion bash > /etc/bash_completion.d/scmd
+  # macOS:
+  $ scmd completion bash > /usr/local/etc/bash_completion.d/scmd
+
+Zsh:
+  # If shell completion is not already enabled in your environment, you will need to enable it:
+  $ echo "autoload -U compinit; compinit" >> ~/.zshrc
+
+  # To load completions for each session, execute once:
+  $ scmd completion zsh > "${fpath[1]}/_scmd"
+
+  # You will need to start a new shell for this setup to take effect.
+
+Fish:
+  $ scmd completion fish | source
+
+  # To load completions for each session, execute once:
+  $ scmd completion fish > ~/.config/fish/completions/scmd.fish
+
+PowerShell:
+  PS> scmd completion powershell | Out-String | Invoke-Expression
+
+  # To load completions for every new session, run:
+  PS> scmd completion powershell > scmd.ps1
+  # and source this file from your PowerShell profile.
+`,
+	DisableFlagsInUseLine: true,
+	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
+	Args:                  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		switch args[0] {
+		case "bash":
+			return rootCmd.GenBashCompletion(os.Stdout)
+		case "zsh":
+			return rootCmd.GenZshCompletion(os.Stdout)
+		case "fish":
+			return rootCmd.GenFishCompletion(os.Stdout, true)
+		case "powershell":
+			return rootCmd.GenPowerShellCompletionWithDesc(os.Stdout)
+		default:
+			return fmt.Errorf("unsupported shell: %s", args[0])
+		}
+	},
 }
 
 // backendsCmd lists available backends
@@ -161,6 +223,19 @@ var configCmd = &cobra.Command{
 	},
 }
 
+// killProcessCmd wraps the builtin kill-process command
+var killProcessCmd = &cobra.Command{
+	Use:     "kill-process <name>",
+	Short:   "Find and kill processes by name",
+	Aliases: []string{"kp", "killp"},
+	Example: `  scmd kill-process cursor
+  scmd /kp node
+  scmd kill-process chrome`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runBuiltinCommand("kill-process", args)
+	},
+}
+
 func runBuiltinCommand(name string, args []string) error {
 	ctx := context.Background()
 	mode := DetectIOMode()
@@ -185,8 +260,15 @@ func runBuiltinCommand(name string, args []string) error {
 
 	// Get the best available backend
 	activeBackend, err := getActiveBackend(ctx)
-	if err != nil && verbose {
-		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+	if err != nil {
+		// If user explicitly specified a backend, fail immediately
+		if backendFlag != "" {
+			return err
+		}
+		// Otherwise, just warn if verbose
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+		}
 	}
 
 	// Create execution context
@@ -199,7 +281,7 @@ func runBuiltinCommand(name string, args []string) error {
 	// Get the command
 	c, ok := cmdRegistry.Get(name)
 	if !ok {
-		return fmt.Errorf("unknown command: %s", name)
+		return NewCommandNotFoundError(name, cmdRegistry.Names())
 	}
 
 	// Build args
@@ -306,7 +388,12 @@ func getActiveBackend(ctx context.Context) (backend.Backend, error) {
 	if backendFlag != "" {
 		b, ok := backendRegistry.Get(backendFlag)
 		if !ok {
-			return nil, fmt.Errorf("unknown backend: %s", backendFlag)
+			// Get list of available backends
+			availableBackends := []string{}
+			for _, backend := range backendRegistry.List() {
+				availableBackends = append(availableBackends, backend.Name())
+			}
+			return nil, NewBackendNotFoundError(backendFlag, availableBackends)
 		}
 		if modelFlag != "" {
 			// Set model if supported
@@ -360,8 +447,15 @@ func runRoot(cmd *cobra.Command, args []string) error {
 
 	// Get the best available backend
 	activeBackend, err := getActiveBackend(ctx)
-	if err != nil && verbose {
-		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+	if err != nil {
+		// If user explicitly specified a backend, fail immediately
+		if backendFlag != "" {
+			return err
+		}
+		// Otherwise, just warn if verbose
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+		}
 	}
 
 	// Create execution context
@@ -414,7 +508,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 
 func runPrompt(ctx context.Context, prompt, stdin string, mode *IOMode, output *OutputWriter, execCtx *command.ExecContext) error {
 	if execCtx.Backend == nil {
-		return fmt.Errorf("no backend available. Install Ollama or set an API key")
+		return NewNoBackendError()
 	}
 
 	if !quietFlag && mode.StderrIsTTY {
@@ -471,7 +565,7 @@ func runPrompt(ctx context.Context, prompt, stdin string, mode *IOMode, output *
 func runCommandWithStdin(ctx context.Context, cmdName string, args []string, stdin string, mode *IOMode, output *OutputWriter, execCtx *command.ExecContext) error {
 	c, ok := cmdRegistry.Get(cmdName)
 	if !ok {
-		return fmt.Errorf("unknown command: %s", cmdName)
+		return NewCommandNotFoundError(cmdName, cmdRegistry.Names())
 	}
 
 	cmdArgs := command.NewArgs()
@@ -559,8 +653,15 @@ func runSlashCommand(cmd string, args []string) error {
 
 	// Get the best available backend
 	activeBackend, err := getActiveBackend(ctx)
-	if err != nil && verbose {
-		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+	if err != nil {
+		// If user explicitly specified a backend, fail immediately
+		if backendFlag != "" {
+			return err
+		}
+		// Otherwise, just warn if verbose
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+		}
 	}
 
 	// Create execution context
@@ -587,7 +688,7 @@ func runSlashCommand(cmd string, args []string) error {
 	}
 
 	if !ok {
-		return fmt.Errorf("unknown slash command: /%s\nRun 'scmd slash list' for available commands", cmdName)
+		return NewCommandNotFoundError(cmdName, cmdRegistry.Names())
 	}
 
 	// Build args

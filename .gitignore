@@ -32,3 +32,16 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Distribution artifacts
+completions/
+npm/bin/
+npm/tmp/
+
+# Release artifacts (kept in dist/ but listed explicitly)
+*.tar.gz
+*.zip
+*.deb
+*.rpm
+*.apk
+checksums.txt
