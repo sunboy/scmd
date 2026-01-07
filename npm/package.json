@@ -1,0 +1,55 @@
+{
+  "name": "scmd-cli",
+  "version": "0.1.0",
+  "description": "AI-powered slash commands for any terminal. Works offline by default.",
+  "main": "index.js",
+  "bin": {
+    "scmd": "bin/scmd"
+  },
+  "scripts": {
+    "postinstall": "node install.js",
+    "preuninstall": "node uninstall.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scmd/scmd.git"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "cli",
+    "terminal",
+    "slash-commands",
+    "llama",
+    "qwen",
+    "offline",
+    "command-line",
+    "productivity",
+    "developer-tools"
+  ],
+  "author": "scmd team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/scmd/scmd/issues"
+  },
+  "homepage": "https://github.com/scmd/scmd#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "files": [
+    "install.js",
+    "uninstall.js",
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ]
+}

@@ -1,0 +1,229 @@
+name: git-rebase-interactive
+version: "1.0.0"
+description: Guide users through interactive rebase workflows with tool calling
+category: git
+author: scmd-evaluation
+
+args:
+  - name: base
+    description: Base commit or branch to rebase onto
+    required: false
+  - name: commits
+    description: Number of commits to rebase (e.g., HEAD~5)
+    required: false
+
+prompt:
+  system: |
+    You are a git interactive rebase expert with access to shell tools.
+
+    Interactive rebase is one of the most powerful but dangerous git operations.
+    It allows rewriting history by:
+    - Squashing multiple commits into one
+    - Reordering commits
+    - Editing commit messages
+    - Dropping commits
+    - Splitting commits
+
+    Available commands in interactive rebase:
+    - **pick**: Keep commit as-is
+    - **reword**: Change commit message only
+    - **edit**: Stop to amend commit
+    - **squash**: Combine with previous commit, keep both messages
+    - **fixup**: Combine with previous commit, discard this message
+    - **drop**: Remove commit entirely
+    - **exec**: Run shell command after commit
+
+    Workflow:
+    1. git rebase -i <base>
+    2. Editor opens with commit list
+    3. Change "pick" to desired action
+    4. Save and close editor
+    5. Git executes the rebase plan
+    6. Handle conflicts if they arise
+    7. git rebase --continue or --abort
+
+    Common use cases:
+    1. **Squash commits**: Clean up "WIP" commits before PR
+    2. **Reword messages**: Fix typos or improve descriptions
+    3. **Reorder**: Move related commits together
+    4. **Split commits**: Use "edit" then "git reset HEAD^"
+
+    Danger zones:
+    - **Never rebase public/shared branches!**
+    - **Always create backup branch first**
+    - **Can't easily undo after push --force**
+    - **Conflicts in rebase are harder than merge conflicts**
+
+    Safety checklist:
+    1. Verify you're on correct branch
+    2. Ensure working directory is clean
+    3. Create backup branch
+    4. Know base commit/branch
+    5. Understand what you're changing
+    6. Have way to recover (reflog)
+
+    Tool calling strategy:
+    1. Use shell to check git status
+    2. Use shell to see commit history
+    3. Use read_file to check branch info
+    4. Guide user step by step
+    5. Provide recovery commands if needed
+
+  template: |
+    {{- if .base }}
+    Rebase onto: {{.base}}
+    {{- end }}
+
+    {{- if .commits }}
+    Rebase last {{.commits}} commits
+    {{- end }}
+
+    {{- if .stdin }}
+    User goal:
+    {{.stdin}}
+    {{- end }}
+
+    Use available tools to:
+    1. Check current git state
+    2. Show commit history
+    3. Generate safe rebase commands
+    4. Provide step-by-step instructions
+    5. Include recovery options
+
+model:
+  temperature: 0.2
+  max_tokens: 1200
+
+context:
+  git: true
+
+tools:
+  - name: shell
+    whitelist:
+      - git status
+      - git branch
+      - git log
+      - git reflog
+      - git show
+
+examples:
+  - description: "Squash last 3 commits"
+    input:
+      commits: "3"
+      stdin: "Squash my last 3 WIP commits into one clean commit"
+    output: |
+      I'll help you squash the last 3 commits. Let me first check your current state.
+
+      # Step 1: Check current state
+      $ git status
+      $ git log --oneline -n 5
+
+      # Step 2: Create backup branch (IMPORTANT!)
+      $ git branch backup-before-rebase-$(date +%s)
+
+      # Step 3: Start interactive rebase
+      $ git rebase -i HEAD~3
+
+      # An editor will open with something like:
+      pick abc123 WIP: Added feature X
+      pick def456 WIP: Fixed bug
+      pick ghi789 WIP: Added tests
+
+      # Step 4: Change to:
+      pick abc123 WIP: Added feature X
+      squash def456 WIP: Fixed bug
+      squash ghi789 WIP: Added tests
+
+      # Or use 'fixup' to discard the WIP messages:
+      pick abc123 WIP: Added feature X
+      fixup def456 WIP: Fixed bug
+      fixup ghi789 WIP: Added tests
+
+      # Step 5: Save and close editor
+      # Git will combine the commits
+      # Another editor opens for the combined commit message
+
+      # Step 6: Write clean commit message:
+      feat: Add feature X with tests and bug fixes
+
+      Implemented feature X including:
+      - Main feature functionality
+      - Bug fix for edge case
+      - Comprehensive test coverage
+
+      # Step 7: Save and close
+      # Rebase completes!
+
+      # Step 8: Verify
+      $ git log --oneline -n 3
+
+      # If something went wrong:
+      $ git rebase --abort
+      # Or restore from backup:
+      $ git reset --hard backup-before-rebase-1704567890
+
+  - description: "Reorder and edit commits"
+    input:
+      stdin: "I need to reorder commits and fix a commit message"
+    output: |
+      # Check current commits
+      $ git log --oneline -n 5
+
+      # Backup first!
+      $ git branch backup-$(date +%s)
+
+      # Start interactive rebase (adjust number as needed)
+      $ git rebase -i HEAD~5
+
+      # In the editor, you can:
+      # 1. Reorder lines to reorder commits
+      # 2. Change "pick" to "reword" to edit message
+      # 3. Change "pick" to "edit" to modify commit
+
+      # Example:
+      pick abc123 Add feature A
+      pick def456 Add feature B
+      pick ghi789 Fix typo
+      pick jkl012 Add tests for A
+
+      # Reordered and reworded:
+      pick abc123 Add feature A
+      reword jkl012 Add tests for A
+      pick def456 Add feature B
+      pick ghi789 Fix typo
+
+      # Save and close
+      # For each "reword", an editor opens to change the message
+      # For each "edit", git stops and lets you amend
+
+      # If you used "edit":
+      $ git commit --amend
+      $ git rebase --continue
+
+  - description: "Recovery from failed rebase"
+    input:
+      stdin: "My rebase is stuck with conflicts, help me recover"
+    output: |
+      # Option 1: Abort the rebase (safest)
+      $ git rebase --abort
+
+      # This returns you to the state before rebase started
+
+      # Option 2: Fix conflicts and continue
+      $ git status  # Shows conflicted files
+
+      # Fix each conflicted file, then:
+      $ git add <fixed-files>
+      $ git rebase --continue
+
+      # Option 3: Use reflog to go back in time
+      $ git reflog
+      # Find the commit before rebase started
+      $ git reset --hard HEAD@{5}  # Adjust number as needed
+
+      # Option 4: Restore from backup branch
+      $ git branch --list backup-*
+      $ git reset --hard backup-before-rebase-1704567890
+
+      # Prevention: Always create backup before rebase!
+      $ git branch backup-$(date +%s)

@@ -1,0 +1,153 @@
+name: git-cherry-pick-range
+version: "1.0.0"
+description: Cherry-pick a range of commits from another branch
+category: git
+author: scmd-evaluation
+
+args:
+  - name: from_commit
+    description: Start commit (or branch name)
+    required: false
+  - name: to_commit
+    description: End commit (default: HEAD)
+    required: false
+  - name: target_branch
+    description: Branch to apply commits to (default: current)
+    required: false
+
+prompt:
+  system: |
+    You are a git expert specializing in cherry-picking and commit manipulation.
+
+    Cherry-picking ranges is complex and error-prone. Help users do it correctly.
+
+    Key concepts:
+    - cherry-pick applies commits from one branch to another
+    - Range syntax: commit1..commit2 (excludes commit1, includes commit2)
+    - Range syntax: commit1^..commit2 (includes commit1 and commit2)
+    - Hash vs branch: can use either commit hashes or branch names
+
+    Common workflows:
+    1. Cherry-pick single commit: git cherry-pick abc123
+    2. Cherry-pick range: git cherry-pick abc123..def456
+    3. Cherry-pick including start: git cherry-pick abc123^..def456
+    4. Cherry-pick from branch: git cherry-pick feature-branch~3..feature-branch
+    5. Continue after conflict: git cherry-pick --continue
+    6. Abort: git cherry-pick --abort
+
+    Important safety steps:
+    1. Always check current branch first: git branch
+    2. View commits to be picked: git log --oneline abc123..def456
+    3. Create backup branch: git branch backup-$(date +%s)
+    4. Consider rebase instead for cleaner history
+    5. Handle merge conflicts carefully
+
+    Conflict resolution:
+    1. Fix conflicts in files
+    2. git add <resolved-files>
+    3. git cherry-pick --continue
+    4. Repeat for each commit
+
+    Alternative approaches:
+    - For many commits: consider git rebase instead
+    - For single file changes: git checkout branch -- file
+    - For interactive selection: git rebase -i
+
+    Provide:
+    1. Safety checks (current branch, backup)
+    2. Preview command (git log to see commits)
+    3. Actual cherry-pick command
+    4. Conflict resolution steps
+    5. Verification command
+
+  template: |
+    Cherry-pick commits:
+    {{- if .from_commit }}
+    From: {{.from_commit}}
+    {{- end }}
+    {{- if .to_commit }}
+    To: {{.to_commit}}
+    {{- else }}
+    To: HEAD of source branch
+    {{- end }}
+    {{- if .target_branch }}
+    Target branch: {{.target_branch}}
+    {{- else }}
+    Target: current branch
+    {{- end }}
+
+    {{- if .stdin }}
+
+    Additional context:
+    {{.stdin}}
+    {{- end }}
+
+    Generate the complete workflow for safely cherry-picking these commits.
+
+model:
+  temperature: 0.2
+  max_tokens: 900
+
+context:
+  git: true
+
+tools:
+  - name: shell
+    whitelist:
+      - git status
+      - git branch
+      - git log
+
+hooks:
+  pre:
+    - shell: git status --short
+    - shell: git branch --show-current
+
+examples:
+  - description: "Cherry-pick last 3 commits from feature branch"
+    input:
+      from_commit: "feature-branch~3"
+      to_commit: "feature-branch"
+      target_branch: "main"
+    output: |
+      # Step 1: Safety checks
+      git branch --show-current  # Verify you're on the target branch
+      git status                  # Ensure clean working directory
+
+      # Step 2: Create backup
+      git branch backup-main-$(date +%s)
+
+      # Step 3: Preview commits to be picked
+      git log --oneline feature-branch~3..feature-branch
+
+      # Step 4: Cherry-pick the range (includes all 3 commits)
+      git cherry-pick feature-branch~3^..feature-branch
+
+      # If conflicts occur:
+      # 1. Fix conflicts in files
+      # 2. git add <files>
+      # 3. git cherry-pick --continue
+      # 4. Repeat for each commit
+
+      # To abort:
+      # git cherry-pick --abort
+
+      # Step 5: Verify
+      git log --oneline -n 3
+
+  - description: "Cherry-pick specific commit range by hash"
+    input:
+      from_commit: "abc123"
+      to_commit: "def456"
+    output: |
+      # Preview commits (IMPORTANT - do this first!)
+      git log --oneline abc123..def456
+
+      # This excludes abc123, includes def456
+      # To include abc123, use: abc123^..def456
+
+      # Cherry-pick the range
+      git cherry-pick abc123..def456
+
+      # OR to include the first commit:
+      git cherry-pick abc123^..def456

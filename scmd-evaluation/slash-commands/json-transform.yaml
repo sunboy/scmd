@@ -1,0 +1,241 @@
+name: json-transform
+version: "1.0.0"
+description: Transform complex JSON with jq using tool calling to analyze structure
+category: data-processing
+author: scmd-evaluation
+
+args:
+  - name: operation
+    description: Transformation to perform
+    required: false
+  - name: file
+    description: JSON file to process
+    required: false
+
+prompt:
+  system: |
+    You are a jq expert with access to tools to read and analyze JSON files.
+
+    Complex JSON transformations often require:
+    1. Understanding the structure first
+    2. Testing queries incrementally
+    3. Handling edge cases (nulls, missing keys, arrays)
+    4. Combining multiple jq operations
+
+    Tool calling strategy:
+    1. If file provided, use read_file to see structure
+    2. Analyze the JSON schema
+    3. Build jq query incrementally
+    4. Provide test commands
+    5. Handle common errors
+
+    Complex jq patterns:
+
+    **Nested filtering**:
+    .users[] | select(.active) | .orders[] | select(.amount > 100)
+
+    **Grouping and aggregation**:
+    group_by(.category) | map({category: .[0].category, total: map(.amount) | add})
+
+    **Flattening nested structures**:
+    [.[] | .items[] | {user: .username, item: .name}]
+
+    **Handling nulls**:
+    .field // "default"  # Default if null
+    .field? // empty     # Skip if missing
+
+    **Array manipulation**:
+    map(select(.age > 18))  # Filter array
+    [.[] | select(.active)] # Compact syntax
+    sort_by(.date) | reverse  # Sort descending
+
+    **Object construction**:
+    {name: .fullName, email: .contact.email, age: .personalInfo.age}
+
+    **Multiple outputs**:
+    .[] | "\(.name),\(.age)"  # CSV-like output
+
+    **Recursive descent**:
+    .. | .email? | select(. != null)  # Find all emails in nested structure
+
+    **Conditional logic**:
+    if .age < 18 then "minor" elif .age < 65 then "adult" else "senior" end
+
+    Common errors and fixes:
+    - "Cannot iterate over null": Add ? after field (.field[]?)
+    - "Cannot index array with string": Wrong type, check structure
+    - Empty output: Check filter logic, use -c for compact output
+
+    Provide:
+    1. Analysis of JSON structure
+    2. Incremental jq query building
+    3. Full command with explanations
+    4. Test commands to verify
+    5. Alternative approaches
+
+  template: |
+    {{- if .file }}
+    JSON file: {{.file}}
+    {{- end }}
+
+    {{- if .operation }}
+    Operation: {{.operation}}
+    {{- end }}
+
+    {{- if .stdin }}
+    User request or sample JSON:
+    {{.stdin}}
+    {{- end }}
+
+    Use tools to read the JSON file (if provided), analyze its structure, and generate the appropriate jq transformation.
+
+model:
+  temperature: 0.2
+  max_tokens: 1200
+
+tools:
+  - name: read_file
+    description: Read JSON file to analyze structure
+  - name: shell
+    whitelist:
+      - jq
+      - head
+      - wc
+
+hooks:
+  pre:
+    - shell: command -v jq >/dev/null 2>&1 || echo "⚠️  Install jq: brew install jq"
+
+examples:
+  - description: "Extract nested data from complex API response"
+    input:
+      operation: "Get all user emails from nested structure"
+      stdin: |
+        {
+          "data": {
+            "users": [
+              {
+                "id": 1,
+                "profile": {
+                  "contact": {
+                    "email": "alice@example.com"
+                  }
+                }
+              }
+            ]
+          }
+        }
+    output: |
+      # Step 1: Understand the structure
+      $ jq '.' data.json | head -20
+
+      # Step 2: Navigate to users array
+      $ jq '.data.users' data.json
+
+      # Step 3: Iterate and extract emails
+      $ jq '.data.users[] | .profile.contact.email' data.json
+
+      # Step 4: Collect into array
+      $ jq '[.data.users[] | .profile.contact.email]' data.json
+
+      # Step 5: Handle potential nulls
+      $ jq '[.data.users[] | .profile.contact.email? // empty]' data.json
+
+      # Full command:
+      jq '[.data.users[] | .profile.contact.email? // empty]' data.json
+
+      # Output as CSV:
+      jq -r '.data.users[] | .profile.contact.email? // empty' data.json
+
+  - description: "Group and aggregate by category"
+    input:
+      operation: "Sum sales by category"
+      stdin: |
+        [
+          {"product": "A", "category": "electronics", "amount": 100},
+          {"product": "B", "category": "electronics", "amount": 150},
+          {"product": "C", "category": "books", "amount": 30}
+        ]
+    output: |
+      # Step 1: Group by category
+      $ jq 'group_by(.category)' sales.json
+
+      # Step 2: Sum amounts per group
+      $ jq 'group_by(.category) | map({category: .[0].category, total: map(.amount) | add})' sales.json
+
+      # Output:
+      [
+        {"category": "books", "total": 30},
+        {"category": "electronics", "total": 250}
+      ]
+
+      # Alternative: As object instead of array
+      $ jq 'group_by(.category) | map({(.[0].category): (map(.amount) | add)}) | add' sales.json
+
+      # Output:
+      {"books": 30, "electronics": 250}
+
+  - description: "Flatten and transform nested structure"
+    input:
+      operation: "Create flat list of all orders with user info"
+      stdin: |
+        {
+          "users": [
+            {
+              "name": "Alice",
+              "orders": [
+                {"id": 1, "amount": 100},
+                {"id": 2, "amount": 200}
+              ]
+            }
+          ]
+        }
+    output: |
+      # Step 1: Iterate through users
+      $ jq '.users[]' data.json
+
+      # Step 2: Iterate through orders
+      $ jq '.users[] | .orders[]' data.json
+
+      # Step 3: Combine user and order info
+      $ jq '.users[] | . as $user | .orders[] | {user: $user.name, order_id: .id, amount: .amount}' data.json
+
+      # Step 4: Collect into array
+      $ jq '[.users[] | . as $user | .orders[] | {user: $user.name, order_id: .id, amount: .amount}]' data.json
+
+      # Full command explanation:
+      - '. as $user': Store current user in variable
+      - Iterate orders for this user
+      - Construct new object combining both
+
+      # Output as CSV:
+      $ jq -r '.users[] | . as $user | .orders[] | [.user.name, $user.id, .amount] | @csv' data.json
+
+  - description: "Filter complex conditions"
+    input:
+      operation: "Find active premium users over 18 with recent activity"
+    output: |
+      # Complex filter with multiple conditions
+      jq '[
+        .users[] |
+        select(.status == "active") |
+        select(.subscription == "premium") |
+        select(.age > 18) |
+        select(.lastActive | fromdateiso8601 > (now - 2592000))
+      ]' users.json
+
+      # Alternative: Combine with 'and'
+      jq '[
+        .users[] |
+        select(
+          .status == "active" and
+          .subscription == "premium" and
+          .age > 18 and
+          (.lastActive | fromdateiso8601 > (now - 2592000))
+        )
+      ]' users.json
+
+      # Explanation:
+      - Multiple select() calls work like AND
+      - fromdateiso8601: Parse ISO date string
+      - now - 2592000: 30 days ago (in seconds)

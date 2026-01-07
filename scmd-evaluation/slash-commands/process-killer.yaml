@@ -1,0 +1,168 @@
+name: process-killer
+version: "1.0.0"
+description: Find and kill processes safely by name, port, or resource usage
+category: system
+author: scmd-evaluation
+
+args:
+  - name: criteria
+    description: How to find process (name, port, cpu, memory)
+    required: false
+  - name: value
+    description: Process name, port number, or threshold
+    required: false
+
+prompt:
+  system: |
+    You are a process management expert. Help users find and kill processes safely.
+
+    Common scenarios:
+    1. Kill process by name
+    2. Kill process using specific port
+    3. Kill zombie processes
+    4. Kill high CPU/memory consumers
+    5. Kill stuck/hanging processes
+
+    Safe kill patterns:
+
+    **By name**:
+    - Find: ps aux | grep process_name
+    - Kill: pkill process_name
+    - Force kill: pkill -9 process_name
+    - Kill all: killall process_name
+
+    **By port**:
+    - Find: lsof -i :8080
+    - Kill: kill $(lsof -t -i :8080)
+    - Force: kill -9 $(lsof -t -i :8080)
+
+    **By PID**:
+    - Kill: kill PID
+    - Force: kill -9 PID
+    - Check exists: kill -0 PID
+
+    **High resource**:
+    - Top CPU: ps aux --sort=-%cpu | head
+    - Top memory: ps aux --sort=-%mem | head
+    - Kill: kill $(ps aux --sort=-%cpu | awk 'NR==2 {print $2}')
+
+    Kill signal levels:
+    - SIGTERM (15): Graceful shutdown (default)
+    - SIGKILL (9): Force kill (no cleanup)
+    - SIGHUP (1): Reload configuration
+    - SIGINT (2): Interrupt (Ctrl+C)
+
+    Safety checklist:
+    1. Always use regular kill (SIGTERM) first
+    2. Wait 5-10 seconds before SIGKILL
+    3. Verify process is actually stuck
+    4. Don't kill system processes
+    5. Check what process does before killing
+
+    macOS vs Linux differences:
+    - macOS: lsof, pgrep, pkill
+    - Linux: ss, netstat alternatives
+    - Syntax may vary slightly
+
+    Provide:
+    1. Command to find process
+    2. Graceful kill command
+    3. Force kill command if needed
+    4. Verification command
+    5. Warning about implications
+
+  template: |
+    {{- if .criteria }}
+    Find by: {{.criteria}}
+    {{- end }}
+
+    {{- if .value }}
+    Value: {{.value}}
+    {{- end }}
+
+    {{- if .stdin }}
+    Details:
+    {{.stdin}}
+    {{- end }}
+
+    Generate commands to safely find and kill the process.
+
+model:
+  temperature: 0.2
+  max_tokens: 600
+
+examples:
+  - description: "Kill process by name"
+    input:
+      criteria: "name"
+      value: "node"
+    output: |
+      # Step 1: Find the process
+      $ ps aux | grep node
+
+      # Step 2: List all node processes
+      $ pgrep -fl node
+
+      # Step 3: Kill gracefully (SIGTERM)
+      $ pkill node
+
+      # Step 4: If still running after 10 seconds, force kill
+      $ pkill -9 node
+
+      # Alternative: Kill all by name
+      $ killall node
+
+      # Or kill specific PID:
+      $ kill $(pgrep node)
+
+      # Verify it's gone:
+      $ pgrep node
+
+  - description: "Kill process on port"
+    input:
+      criteria: "port"
+      value: "8080"
+    output: |
+      # Step 1: Find process using port 8080
+      $ lsof -i :8080
+
+      # Step 2: Get PID
+      $ lsof -t -i :8080
+
+      # Step 3: Kill gracefully
+      $ kill $(lsof -t -i :8080)
+
+      # Step 4: If still running, force kill
+      $ kill -9 $(lsof -t -i :8080)
+
+      # Linux alternative (if lsof not available):
+      $ ss -lptn 'sport = :8080'
+      $ fuser -k 8080/tcp
+
+      # Verify port is free:
+      $ lsof -i :8080
+      # (should return nothing)
+
+  - description: "Kill high CPU process"
+    input:
+      criteria: "cpu"
+      stdin: "Kill process using most CPU"
+    output: |
+      # Step 1: Find top CPU consumers
+      $ ps aux --sort=-%cpu | head -10
+
+      # Step 2: Identify the culprit (PID in column 2)
+      $ ps aux --sort=-%cpu | awk 'NR==2 {print $2, $11}'
+
+      # Step 3: Kill it gracefully
+      $ kill $(ps aux --sort=-%cpu | awk 'NR==2 {print $2}')
+
+      # Interactive monitoring:
+      $ top
+      # Press 'k' then enter PID
+
+      # Or use htop (better):
+      $ htop
+      # Select process, press F9
+
+      # ⚠️  Make sure it's not a system process!

@@ -1,146 +1,279 @@
 # Installation
 
-scmd works offline by default using llama.cpp and local Qwen models. This guide covers installation on all supported platforms.
+scmd works offline by default using llama.cpp and local Qwen models. This guide covers installation on all supported platforms using multiple installation methods.
+
+## Quick Install
+
+Choose the installation method that works best for you:
+
+=== "Homebrew (macOS/Linux)"
+
+    The easiest way to install on macOS and Linux:
+
+    ```bash
+    # Add the scmd tap
+    brew tap scmd/tap
+
+    # Install scmd
+    brew install scmd
+
+    # Verify installation
+    scmd --version
+
+    # Install llama.cpp for offline usage
+    brew install llama.cpp
+    ```
+
+    Homebrew automatically:
+
+    - Installs the binary to your PATH
+    - Adds shell completions for bash, zsh, and fish
+    - Manages updates via `brew upgrade scmd`
+
+=== "npm (Cross-Platform)"
+
+    Works on any platform with Node.js:
+
+    ```bash
+    # Install globally
+    npm install -g scmd-cli
+
+    # Verify installation
+    scmd --version
+
+    # Install llama.cpp for offline usage
+    # macOS:
+    brew install llama.cpp
+    # Linux: build from source (see below)
+    ```
+
+    The npm package:
+
+    - Downloads the correct binary for your platform
+    - Automatically adds scmd to your PATH
+    - Works on macOS, Linux, and Windows
+
+=== "Shell Script (wget/curl)"
+
+    Universal installer for Unix-like systems:
+
+    ```bash
+    # Using curl (recommended)
+    curl -fsSL https://scmd.sh/install.sh | bash
+
+    # Using wget
+    wget -qO- https://scmd.sh/install.sh | bash
+
+    # Verify installation
+    scmd --version
+    ```
+
+    The install script:
+
+    - Auto-detects your OS and architecture
+    - Verifies checksums for security
+    - Installs to `/usr/local/bin` or `~/.local/bin`
+    - Sets up shell completions
+
+    **Custom installation:**
+
+    ```bash
+    # Install to custom directory
+    curl -fsSL https://scmd.sh/install.sh | SCMD_INSTALL_DIR=$HOME/bin bash
+
+    # Install without sudo (user-local)
+    curl -fsSL https://scmd.sh/install.sh | SCMD_NO_SUDO=true bash
+
+    # Install specific version
+    curl -fsSL https://scmd.sh/install.sh | SCMD_VERSION=v1.0.0 bash
+    ```
+
+=== "Linux Packages"
+
+    Native packages for Debian, Red Hat, and Alpine:
+
+    **Debian/Ubuntu (apt):**
+    ```bash
+    # Download and install
+    wget https://github.com/scmd/scmd/releases/latest/download/scmd_VERSION_linux_amd64.deb
+    sudo dpkg -i scmd_VERSION_linux_amd64.deb
+
+    # Or use apt for dependency resolution
+    sudo apt install ./scmd_VERSION_linux_amd64.deb
+
+    # Verify
+    scmd --version
+    ```
+
+    **Red Hat/Fedora/CentOS (rpm):**
+    ```bash
+    # Download and install
+    wget https://github.com/scmd/scmd/releases/latest/download/scmd_VERSION_linux_amd64.rpm
+
+    # Fedora/RHEL 8+
+    sudo dnf install scmd_VERSION_linux_amd64.rpm
+
+    # CentOS 7/RHEL 7
+    sudo yum install scmd_VERSION_linux_amd64.rpm
+
+    # Verify
+    scmd --version
+    ```
+
+    **Alpine Linux (apk):**
+    ```bash
+    wget https://github.com/scmd/scmd/releases/latest/download/scmd_VERSION_linux_amd64.apk
+    sudo apk add --allow-untrusted scmd_VERSION_linux_amd64.apk
+    ```
+
+    Linux packages include:
+
+    - Binary in `/usr/bin/scmd`
+    - Shell completions (bash, zsh, fish)
+    - Integration with system package manager
+
+=== "Binary Download"
+
+    Download pre-built binaries from GitHub:
+
+    1. Visit [GitHub Releases](https://github.com/scmd/scmd/releases/latest)
+    2. Download the archive for your platform:
+       - macOS (Intel): `scmd_VERSION_macOS_amd64.tar.gz`
+       - macOS (Apple Silicon): `scmd_VERSION_macOS_arm64.tar.gz`
+       - Linux (x64): `scmd_VERSION_linux_amd64.tar.gz`
+       - Linux (ARM64): `scmd_VERSION_linux_arm64.tar.gz`
+       - Windows (x64): `scmd_VERSION_windows_amd64.zip`
+
+    3. Extract and install:
+       ```bash
+       # macOS/Linux
+       tar -xzf scmd_VERSION_macOS_arm64.tar.gz
+       sudo mv scmd /usr/local/bin/
+
+       # Windows (PowerShell)
+       Expand-Archive scmd_VERSION_windows_amd64.zip
+       # Add to PATH
+       ```
+
+    4. Verify checksums (recommended):
+       ```bash
+       wget https://github.com/scmd/scmd/releases/download/v1.0.0/checksums.txt
+       shasum -a 256 -c checksums.txt 2>&1 | grep scmd
+       ```
+
+=== "Build from Source"
+
+    For developers or custom builds:
+
+    ```bash
+    # Prerequisites: Go 1.24 or later
+
+    # Clone the repository
+    git clone https://github.com/scmd/scmd
+    cd scmd
+
+    # Build using Makefile
+    make build
+
+    # Install to /usr/local/bin
+    sudo make install
+
+    # Or install to $GOPATH/bin
+    make install-go
+
+    # Or build with Go directly
+    go build -o scmd ./cmd/scmd
+
+    # Verify
+    ./scmd --version
+    ```
 
 ## Prerequisites
 
-- **Go 1.21 or later** (for building from source)
-- **llama-server** (for offline inference)
-- ~3GB disk space for the default model
+### llama.cpp (for offline usage)
 
-## Quick Install (Recommended)
+scmd requires llama.cpp for offline inference:
 
 === "macOS"
 
     ```bash
-    # Install Go (if not installed)
-    brew install go
-
-    # Install llama-server for offline inference
     brew install llama.cpp
 
-    # Clone and build scmd
-    git clone https://github.com/scmd/scmd
-    cd scmd
-    go build -o scmd ./cmd/scmd
-
-    # Move to PATH (optional)
-    sudo mv scmd /usr/local/bin/
-
-    # Verify installation
-    scmd --version
+    # Verify
+    which llama-server
+    llama-server --version
     ```
 
 === "Linux"
 
     ```bash
-    # Install Go (if not installed)
-    # Ubuntu/Debian
-    sudo apt update && sudo apt install golang-go
+    # Ubuntu/Debian - from package manager (if available)
+    sudo apt install llama-cpp
 
-    # Fedora/RHEL
-    sudo dnf install golang
-
-    # Install llama-server
-    # Build from source (recommended for latest version)
+    # Or build from source (recommended for latest version)
     git clone https://github.com/ggerganov/llama.cpp
     cd llama.cpp
     mkdir build && cd build
-    cmake .. -DLLAMA_CUDA=ON  # For NVIDIA GPU support
-    # cmake ..                # For CPU only
+
+    # For NVIDIA GPU support
+    cmake .. -DLLAMA_CUDA=ON
+
+    # For CPU only
+    # cmake ..
+
     cmake --build . --config Release
     sudo cp bin/llama-server /usr/local/bin/
 
-    # Clone and build scmd
-    git clone https://github.com/scmd/scmd
-    cd scmd
-    go build -o scmd ./cmd/scmd
-
-    # Move to PATH (optional)
-    sudo mv scmd /usr/local/bin/
-
-    # Verify installation
-    scmd --version
+    # Verify
+    which llama-server
+    llama-server --version
     ```
 
 === "Windows"
 
+    Download pre-built binaries or build from source:
+
+    1. Visit [llama.cpp releases](https://github.com/ggerganov/llama.cpp/releases)
+    2. Download Windows binaries
+    3. Add to PATH
+
+    Or build with CMake:
     ```powershell
-    # Install Go from https://go.dev/dl/
-
-    # Install llama.cpp (via CMake or pre-built binaries)
-    # Download from https://github.com/ggerganov/llama.cpp/releases
-
-    # Clone and build scmd
-    git clone https://github.com/scmd/scmd
-    cd scmd
-    go build -o scmd.exe ./cmd/scmd
-
-    # Add to PATH or use .\scmd.exe
-
-    # Verify installation
-    .\scmd.exe --version
+    git clone https://github.com/ggerganov/llama.cpp
+    cd llama.cpp
+    mkdir build
+    cd build
+    cmake ..
+    cmake --build . --config Release
     ```
 
-## Install from Source
+## Post-Installation
+
+### 1. Verify Installation
 
 ```bash
-# Install with go install
-go install github.com/scmd/scmd/cmd/scmd@latest
-
-# Install llama-server
-# macOS
-brew install llama.cpp
-
-# Linux - build from source
-git clone https://github.com/ggerganov/llama.cpp
-cd llama.cpp && mkdir build && cd build
-cmake .. && cmake --build . --config Release
-sudo cp bin/llama-server /usr/local/bin/
-```
-
-## Verify Installation
-
-### Check scmd
-
-```bash
+# Check scmd version
 scmd --version
-# Output: scmd version 1.0.0
-```
 
-### Check Backends
-
-```bash
+# Check available backends
 scmd backends
 ```
 
 Expected output:
-
 ```
 Available backends:
 
-✓ llamacpp      Ready (qwen3-4b)
-  llama-server running on http://127.0.0.1:8089
-
-✗ ollama        Not running
-  Start with: ollama serve
-
-✗ openai        Not configured
-  Set OPENAI_API_KEY environment variable
-
-✗ together      Not configured
-  Set TOGETHER_API_KEY environment variable
-
-✗ groq          Not configured
-  Set GROQ_API_KEY environment variable
+✓ llamacpp     qwen3-4b
+✗ ollama       (not running)
+✗ openai       (not configured)
 ```
 
-### First Run (Model Download)
+### 2. First Run (Model Download)
 
 On first use, scmd will automatically download the default model (~2.6GB):
 
 ```bash
-./scmd /explain "what is a channel in Go?"
+scmd /explain "what is a channel in Go?"
 ```
 
 Output:
@@ -155,7 +288,51 @@ A channel in Go is a typed conduit through which you can send
 and receive values with the channel operator <-...
 ```
 
-## Installation Paths
+### 3. Set Up Shell Completions (Optional)
+
+Enable tab completion for scmd commands:
+
+=== "Bash"
+
+    ```bash
+    # Generate completion script
+    scmd completion bash > /tmp/scmd-completion.bash
+
+    # Install for current user
+    mkdir -p ~/.bash_completion.d
+    mv /tmp/scmd-completion.bash ~/.bash_completion.d/scmd
+
+    # Or install system-wide (requires sudo)
+    sudo scmd completion bash > /etc/bash_completion.d/scmd
+
+    # Reload
+    source ~/.bashrc
+    ```
+
+=== "Zsh"
+
+    ```bash
+    # Enable completion system
+    echo "autoload -U compinit; compinit" >> ~/.zshrc
+
+    # Install completion
+    scmd completion zsh > "${fpath[1]}/_scmd"
+
+    # Reload
+    source ~/.zshrc
+    ```
+
+=== "Fish"
+
+    ```bash
+    # Install completion
+    scmd completion fish > ~/.config/fish/completions/scmd.fish
+
+    # Reload
+    source ~/.config/fish/config.fish
+    ```
+
+## Directory Structure
 
 scmd uses the following directory structure:
 
@@ -175,11 +352,165 @@ scmd uses the following directory structure:
         └── manifest.yaml
 ```
 
-You can customize the data directory:
+### XDG Base Directory Support
+
+scmd respects XDG environment variables if set:
+
+```bash
+export XDG_CONFIG_HOME=~/.config
+export XDG_DATA_HOME=~/.local/share
+export XDG_CACHE_HOME=~/.cache
+
+# scmd will use:
+# - $XDG_CONFIG_HOME/scmd/ for config
+# - $XDG_DATA_HOME/scmd/ for models and data
+# - $XDG_CACHE_HOME/scmd/ for cache
+```
+
+Or customize the data directory:
 
 ```bash
 export SCMD_DATA_DIR=/path/to/custom/dir
 scmd /explain "test"
+```
+
+## Updating scmd
+
+=== "Homebrew"
+
+    ```bash
+    brew upgrade scmd
+    ```
+
+=== "npm"
+
+    ```bash
+    npm update -g scmd-cli
+    ```
+
+=== "Shell Script"
+
+    Re-run the install script:
+    ```bash
+    curl -fsSL https://scmd.sh/install.sh | bash
+    ```
+
+=== "Linux Packages"
+
+    ```bash
+    # Debian/Ubuntu
+    sudo apt upgrade scmd
+
+    # Fedora/RHEL
+    sudo dnf upgrade scmd
+    ```
+
+=== "Source"
+
+    ```bash
+    cd scmd
+    git pull origin main
+    make build
+    sudo make install
+    ```
+
+## Uninstalling scmd
+
+=== "Homebrew"
+
+    ```bash
+    brew uninstall scmd
+
+    # Remove data (optional)
+    rm -rf ~/.scmd
+    ```
+
+=== "npm"
+
+    ```bash
+    npm uninstall -g scmd-cli
+
+    # Remove data (optional)
+    rm -rf ~/.scmd
+    ```
+
+=== "Shell Script"
+
+    ```bash
+    # Use the uninstall script
+    curl -fsSL https://scmd.sh/uninstall.sh | bash
+
+    # Or manually
+    sudo rm /usr/local/bin/scmd
+    rm -rf ~/.scmd
+    ```
+
+=== "Linux Packages"
+
+    ```bash
+    # Debian/Ubuntu
+    sudo apt remove scmd
+
+    # Fedora/RHEL
+    sudo dnf remove scmd
+
+    # Remove data (optional)
+    rm -rf ~/.scmd
+    ```
+
+## Troubleshooting
+
+For detailed troubleshooting, see the [Troubleshooting Guide](../user-guide/troubleshooting.md).
+
+### Common Issues
+
+#### Command not found: scmd
+
+**Issue**: Shell can't find the scmd binary.
+
+**Solution**: Add scmd's installation directory to PATH:
+
+```bash
+# For ~/.local/bin
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+
+# For Homebrew on Apple Silicon
+echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+eval "$(/opt/homebrew/bin/brew shellenv)"
+```
+
+#### llama-server not found
+
+**Issue**: Offline functionality requires llama.cpp.
+
+**Solution**: Install llama.cpp (see Prerequisites section above)
+
+#### Model download failed
+
+**Issue**: Network issues or firewall restrictions.
+
+**Solution**:
+
+```bash
+# Check network
+curl -I https://huggingface.co
+
+# Manually download model
+scmd models pull qwen3-4b
+
+# Use smaller model
+scmd models pull qwen2.5-1.5b
+```
+
+#### Permission denied
+
+**Issue**: Binary is not executable.
+
+**Solution**:
+
+```bash
+chmod +x /path/to/scmd
 ```
 
 ## Optional: Additional LLM Backends
@@ -230,73 +561,6 @@ export GROQ_API_KEY=gsk_...
 scmd -b groq -m llama-3.1-8b-instant /review code.py
 ```
 
-## Troubleshooting
-
-### "llama-server not found"
-
-Install llama.cpp:
-
-=== "macOS"
-    ```bash
-    brew install llama.cpp
-    ```
-
-=== "Linux"
-    ```bash
-    # Build from source
-    git clone https://github.com/ggerganov/llama.cpp
-    cd llama.cpp && mkdir build && cd build
-    cmake .. && cmake --build . --config Release
-    sudo cp bin/llama-server /usr/local/bin/
-    ```
-
-### "Model download failed"
-
-Check your internet connection and try manually downloading:
-
-```bash
-# Download qwen3-4b
-mkdir -p ~/.scmd/models
-cd ~/.scmd/models
-wget https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/qwen3-4b-q4_k_m.gguf
-```
-
-### "Port 8089 already in use"
-
-Stop any running llama-server instances:
-
-```bash
-# Find process
-lsof -i :8089
-
-# Kill process
-kill -9 <PID>
-
-# Or use different port
-export LLAMA_SERVER_PORT=8090
-scmd /explain "test"
-```
-
-### GPU Acceleration Not Working
-
-For NVIDIA GPUs on Linux:
-
-```bash
-# Rebuild llama.cpp with CUDA support
-cd llama.cpp/build
-cmake .. -DLLAMA_CUDA=ON
-cmake --build . --config Release
-sudo cp bin/llama-server /usr/local/bin/
-```
-
-For Apple Silicon (M1/M2/M3):
-
-```bash
-# Metal is enabled by default on macOS
-# Verify with:
-llama-server --help | grep metal
-```
-
 ## Next Steps
 
 - [Quick Start Tutorial](quick-start.md) - Learn basic usage in 5 minutes
@@ -304,29 +568,10 @@ llama-server --help | grep metal
 - [Shell Integration](shell-integration.md) - Set up `/command` shortcuts
 - [Model Management](../user-guide/models.md) - Download and manage models
 
-## Upgrading
+## Getting Help
 
-```bash
-# Pull latest changes
-cd scmd
-git pull origin main
+- **Documentation**: [Full documentation](https://scmd.github.io/scmd/)
+- **Issues**: [GitHub Issues](https://github.com/scmd/scmd/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/scmd/scmd/discussions)
 
-# Rebuild
-go build -o scmd ./cmd/scmd
-
-# Or with go install
-go install github.com/scmd/scmd/cmd/scmd@latest
-```
-
-## Uninstall
-
-```bash
-# Remove binary
-sudo rm /usr/local/bin/scmd
-
-# Remove data directory (optional - deletes all downloaded models)
-rm -rf ~/.scmd
-
-# Uninstall llama.cpp (optional)
-brew uninstall llama.cpp  # macOS
-```
+For a detailed installation guide with platform-specific instructions and advanced options, see [INSTALL.md](https://github.com/scmd/scmd/blob/main/INSTALL.md) in the repository.

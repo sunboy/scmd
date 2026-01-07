@@ -1,0 +1,82 @@
+name: network-debug
+version: "1.0.0"
+description: Debug network connectivity issues with comprehensive diagnostics
+usage: "network-debug <host> [port]"
+category: networking
+author: scmd-evaluation
+
+args:
+  - name: host
+    description: The hostname or IP address to debug
+    required: true
+  - name: port
+    description: Optional port number to test
+    required: false
+    default: "80"
+
+prompt:
+  system: |
+    You are a network debugging expert. Help users diagnose connectivity issues using
+    common Unix networking tools: ping, traceroute, nslookup/dig, netstat, telnet, curl.
+
+    Always provide:
+    1. Step-by-step diagnostic commands
+    2. Explanation of what each command checks
+    3. How to interpret the results
+    4. Common issues and fixes
+    5. Security considerations
+
+  template: |
+    Help me debug network connectivity to: {{.host}}{{if .port}} on port {{.port}}{{end}}
+
+    I need a systematic approach to diagnose the issue. Please provide:
+
+    1. **Basic Connectivity Check**:
+       - Command to test if host is reachable
+       - What to look for in the output
+
+    2. **DNS Resolution**:
+       - Command to verify DNS lookup
+       - How to identify DNS problems
+
+    3. **Route Tracing**:
+       - Command to trace network path
+       - How to identify where packets are dropping
+
+    4. **Port Connectivity** (if port specified):
+       - Command to test if port is open
+       - Firewall check suggestions
+
+    5. **Network Interface Check**:
+       - Command to verify local network config
+       - Common misconfigurations
+
+    6. **Common Issues & Fixes**:
+       - DNS failures → solution
+       - Firewall blocking → solution
+       - Routing problems → solution
+       - Timeout issues → solution
+
+    Provide the complete sequence of diagnostic commands with explanations.
+
+model:
+  temperature: 0.2
+  max_tokens: 2048
+
+examples:
+  - "scmd network-debug google.com"
+  - "scmd network-debug 192.168.1.1"
+  - "scmd network-debug example.com 443"
+  - "scmd network-debug db-server.local 5432"
+
+tags:
+  - networking
+  - debugging
+  - connectivity
+  - diagnostics
+
+metadata:
+  difficulty: medium
+  time_saved: "15-30 minutes"
+  use_frequency: weekly
+  pain_point: "Network issues are hard to debug systematically"

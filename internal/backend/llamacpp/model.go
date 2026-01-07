@@ -328,20 +328,87 @@ func (b *Backend) Initialize(ctx context.Context) error {
 		return nil
 	}
 
+	debug := os.Getenv("SCMD_DEBUG") != ""
+
 	// Download model if needed
 	modelPath, err := b.modelManager.GetModelPath(ctx, b.modelName)
 	if err != nil {
 		return fmt.Errorf("get model: %w", err)
 	}
 	b.modelPath = modelPath
-	b.initialized = true
 
+	// Auto-start llama-server if not already running
+	// This is the key fix from the evaluation feedback
+	if !IsServerRunning(8089) {
+		if os.Getenv("SCMD_NO_AUTOSTART") == "" {
+			// Show helpful startup message (unless in quiet mode)
+			quiet := os.Getenv("SCMD_QUIET") != ""
+			if !quiet {
+				fmt.Fprintln(os.Stderr, "⏳ Starting llama-server...")
+			}
+
+			if debug {
+				fmt.Fprintf(os.Stderr, "[DEBUG] Auto-starting llama-server...\n")
+			}
+
+			config := DefaultServerConfig(modelPath)
+
+			// Detect resources and show performance info
+			if !quiet {
+				resources, err := DetectSystemResources()
+				if err == nil {
+					modelInfo, _ := os.Stat(modelPath)
+					var modelSize int64
+					if modelInfo != nil {
+						modelSize = modelInfo.Size()
+					}
+					optimalConfig := CalculateOptimalConfig(resources, modelSize)
+					config.ContextSize = optimalConfig.ContextSize
+					config.GPULayers = optimalConfig.GPULayers
+
+					// Show performance mode
+					if config.GPULayers == 0 {
+						fmt.Fprintln(os.Stderr, "⚠️  Running in CPU mode (slower, but uses less memory)")
+						fmt.Fprintln(os.Stderr, "   Expect 30-60 seconds per query")
+						fmt.Fprintln(os.Stderr, "   Tip: Use cloud backend for faster results: scmd -b openai")
+					} else if resources.HasGPU {
+						fmt.Fprintf(os.Stderr, "✅ GPU acceleration enabled (%s)\n", resources.GPUType)
+						fmt.Fprintln(os.Stderr, "   Expect ~2-5 seconds per query")
+					}
+				}
+			}
+
+			_, err := StartServerWithConfig(config)
+			if err != nil {
+				return fmt.Errorf("auto-start llama-server: %w\n\nTip: Install llama-server with: brew install llama.cpp", err)
+			}
+
+			if !quiet {
+				fmt.Fprintln(os.Stderr, "✅ llama-server ready")
+				fmt.Fprintln(os.Stderr, "")
+			}
+
+			if debug {
+				fmt.Fprintf(os.Stderr, "[DEBUG] llama-server is ready\n")
+			}
+		}
+	}
+
+	b.initialized = true
 	return nil
 }
 
 // IsAvailable checks if the backend is available
 func (b *Backend) IsAvailable(ctx context.Context) (bool, error) {
-	// llama.cpp is always available if we can download the model
+	// Check if llama-server binary exists
+	_, err := findLlamaServer()
+	if err != nil {
+		// llama-server not found, backend not available
+		return false, nil
+	}
+
+	// Check if we can access the model (or download it)
+	// This doesn't download yet, just checks if we have the ability to
 	return true, nil
 }
 

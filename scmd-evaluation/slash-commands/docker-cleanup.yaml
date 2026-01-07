@@ -1,0 +1,194 @@
+name: docker-cleanup
+version: "1.0.0"
+description: Clean up Docker containers, images, volumes, and networks safely
+category: devops
+author: scmd-evaluation
+
+args:
+  - name: what
+    description: What to clean (containers, images, volumes, all)
+    default: "containers"
+  - name: dry_run
+    description: Show what would be removed
+    default: "true"
+
+prompt:
+  system: |
+    You are a Docker expert. Help users safely clean up Docker resources.
+
+    Docker cleanup is necessary but dangerous - can delete important data!
+
+    Common cleanup needs:
+    1. Remove stopped containers
+    2. Remove unused images
+    3. Remove dangling images (untagged)
+    4. Remove unused volumes (DATA LOSS RISK!)
+    5. Remove unused networks
+    6. Prune entire system
+
+    Safe commands:
+
+    **Containers**:
+    - List stopped: docker ps -a --filter "status=exited"
+    - Remove stopped: docker container prune
+    - Remove specific: docker rm container_id
+
+    **Images**:
+    - List all: docker images -a
+    - Remove dangling: docker image prune
+    - Remove unused: docker image prune -a
+    - Remove specific: docker rmi image_id
+
+    **Volumes** (⚠️  DATA LOSS):
+    - List: docker volume ls
+    - Remove unused: docker volume prune
+    - Remove specific: docker volume rm volume_name
+
+    **Networks**:
+    - List: docker network ls
+    - Remove unused: docker network prune
+
+    **System-wide** (⚠️  DANGEROUS):
+    - docker system prune (containers, networks, dangling images)
+    - docker system prune -a (includes unused images)
+    - docker system prune -a --volumes (EVERYTHING unused)
+
+    Safety checklist:
+    1. ALWAYS do dry-run first (--dry-run flag or manual check)
+    2. Never prune volumes without explicit backup
+    3. Check running containers first (docker ps)
+    4. Verify images are truly unused
+    5. Consider disk space vs. download time tradeoff
+
+    Provide:
+    1. Current state (what exists)
+    2. Dry-run command (show what would be removed)
+    3. Actual cleanup command
+    4. Space freed estimate
+    5. Recovery options if needed
+
+  template: |
+    Clean up Docker {{.what}}
+
+    Dry-run: {{.dry_run}}
+
+    {{- if .stdin }}
+
+    Context:
+    {{.stdin}}
+    {{- end }}
+
+    Generate safe Docker cleanup commands.
+
+model:
+  temperature: 0.2
+  max_tokens: 700
+
+hooks:
+  pre:
+    - shell: command -v docker >/dev/null 2>&1 || echo "⚠️  Docker not installed"
+    - shell: docker ps -a --format "table {{.Status}}" | grep -c Exited || echo "0 stopped containers"
+
+examples:
+  - description: "Clean stopped containers"
+    input:
+      what: "containers"
+    output: |
+      # Step 1: Check current state
+      $ docker ps -a
+
+      # Step 2: List stopped containers
+      $ docker ps -a --filter "status=exited"
+
+      # Step 3: Show size
+      $ docker ps -a -s
+
+      # Step 4: Dry-run (preview removal)
+      $ docker container prune --dry-run
+
+      # Step 5: Actually remove stopped containers
+      $ docker container prune
+
+      # Or remove all stopped containers:
+      $ docker rm $(docker ps -a -q -f status=exited)
+
+      # Force removal:
+      $ docker container prune -f
+
+  - description: "Clean unused images"
+    input:
+      what: "images"
+    output: |
+      # Step 1: List all images
+      $ docker images -a
+
+      # Step 2: Find dangling images (untagged)
+      $ docker images -f "dangling=true"
+
+      # Step 3: See space usage
+      $ docker system df
+
+      # Step 4: Remove dangling images
+      $ docker image prune
+
+      # Step 5: Remove ALL unused images (more aggressive)
+      $ docker image prune -a
+
+      # Explanation:
+      - Dangling: Untagged images (safe to remove)
+      - Unused: Images not used by any container (check first!)
+
+      # Remove specific image:
+      $ docker rmi image_id
+
+  - description: "Full system cleanup"
+    input:
+      what: "all"
+    output: |
+      # ⚠️  WARNING: This will remove a lot! Check carefully!
+
+      # Step 1: Check what's running
+      $ docker ps
+
+      # Step 2: See total space used
+      $ docker system df
+
+      # Step 3: Preview what would be removed
+      $ docker system prune --dry-run
+
+      # Step 4: Prune system (containers + networks + dangling images)
+      $ docker system prune
+
+      # Step 5: Aggressive prune (includes ALL unused images)
+      $ docker system prune -a
+
+      # Step 6: VERY AGGRESSIVE (includes volumes - ⚠️  DATA LOSS!)
+      $ docker system prune -a --volumes
+
+      # Safer approach: Individual steps
+      $ docker container prune -f  # Stopped containers
+      $ docker image prune -f      # Dangling images
+      $ docker network prune -f    # Unused networks
+      # Manually review volumes before pruning!
+
+  - description: "Clean with size estimates"
+    input:
+      stdin: "Show how much space I'll free"
+    output: |
+      # Current Docker disk usage
+      $ docker system df
+
+      # Detailed breakdown
+      $ docker system df -v
+
+      # Estimate savings from dangling images
+      $ docker images -f "dangling=true" -q | xargs docker inspect --format='{{.Size}}' | awk '{sum+=$1} END {print sum/1024/1024 " MB"}'
+
+      # Size of stopped containers
+      $ docker ps -a -s --filter "status=exited"
+
+      # After cleanup, check freed space
+      $ docker system prune --dry-run 2>&1 | grep "Total reclaimed"
+
+      # Actually prune and see results
+      $ docker system prune

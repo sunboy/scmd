@@ -8,7 +8,8 @@ LDFLAGS := -s -w \
 	-X github.com/scmd/scmd/pkg/version.Commit=$(COMMIT) \
 	-X github.com/scmd/scmd/pkg/version.Date=$(DATE)
 
-.PHONY: all build test lint clean install dev fmt vet coverage deps help
+.PHONY: all build test lint clean install dev fmt vet coverage deps help \
+	release release-snapshot release-dry-run tag completions docker
 
 # Default target
 all: lint test build
@@ -92,7 +93,7 @@ install-go: build
 # Clean build artifacts
 clean:
 	@echo "Cleaning..."
-	rm -rf bin/ dist/ coverage.out coverage.html
+	rm -rf bin/ dist/ coverage.out coverage.html completions/ npm/bin/ npm/tmp/
 
 # Tidy dependencies
 deps:
@@ -119,21 +120,107 @@ audit:
 		echo "govulncheck not installed. Install with: go install golang.org/x/vuln/cmd/govulncheck@latest"; \
 	fi
 
+# Generate shell completions
+completions:
+	@echo "Generating shell completions..."
+	@mkdir -p completions
+	@go run ./cmd/scmd completion bash > completions/scmd.bash
+	@go run ./cmd/scmd completion zsh > completions/scmd.zsh
+	@go run ./cmd/scmd completion fish > completions/scmd.fish
+	@echo "Completions generated in completions/"
+
+# Create a new git tag
+tag:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Usage: make tag VERSION=v1.0.0"; \
+		exit 1; \
+	fi
+	@echo "Creating tag $(VERSION)..."
+	@git tag -a $(VERSION) -m "Release $(VERSION)"
+	@echo "Tag created. Push with: git push origin $(VERSION)"
+
+# Release with GoReleaser
+release:
+	@echo "Running GoReleaser..."
+	@if ! command -v goreleaser >/dev/null 2>&1; then \
+		echo "Error: goreleaser not found. Install it from https://goreleaser.com/install/"; \
+		exit 1; \
+	fi
+	@goreleaser release --clean
+
+# Create a snapshot release (local testing)
+release-snapshot:
+	@echo "Creating snapshot release..."
+	@if ! command -v goreleaser >/dev/null 2>&1; then \
+		echo "Error: goreleaser not found. Install it from https://goreleaser.com/install/"; \
+		exit 1; \
+	fi
+	@goreleaser release --snapshot --clean
+
+# Dry run release (test without publishing)
+release-dry-run:
+	@echo "Running release dry-run..."
+	@if ! command -v goreleaser >/dev/null 2>&1; then \
+		echo "Error: goreleaser not found. Install it from https://goreleaser.com/install/"; \
+		exit 1; \
+	fi
+	@goreleaser release --skip=publish --clean
+
+# Build Docker image locally
+docker:
+	@echo "Building Docker image..."
+	@docker build -t scmd:latest .
+
+# Check if GoReleaser config is valid
+check-goreleaser:
+	@echo "Validating GoReleaser configuration..."
+	@if ! command -v goreleaser >/dev/null 2>&1; then \
+		echo "Error: goreleaser not found. Install it from https://goreleaser.com/install/"; \
+		exit 1; \
+	fi
+	@goreleaser check
+
+# Install GoReleaser
+install-goreleaser:
+	@echo "Installing GoReleaser..."
+	@go install github.com/goreleaser/goreleaser/v2@latest
+	@echo "GoReleaser installed to $(shell go env GOPATH)/bin/goreleaser"
+
 # Help
 help:
 	@echo "scmd Makefile targets:"
-	@echo "  all        - Run lint, test, and build (default)"
-	@echo "  build      - Build the binary"
-	@echo "  build-all  - Build for all platforms"
-	@echo "  test       - Run all tests with coverage"
-	@echo "  test-short - Run short tests"
-	@echo "  test-v     - Run tests with verbose output"
-	@echo "  coverage   - Generate coverage HTML report"
-	@echo "  lint       - Run linters"
-	@echo "  vet        - Run go vet"
-	@echo "  fmt        - Format code"
-	@echo "  dev        - Run in development mode"
-	@echo "  install    - Install to /usr/local/bin"
-	@echo "  clean      - Clean build artifacts"
-	@echo "  deps       - Tidy and verify dependencies"
-	@echo "  help       - Show this help message"
+	@echo ""
+	@echo "Build & Test:"
+	@echo "  all               - Run lint, test, and build (default)"
+	@echo "  build             - Build the binary"
+	@echo "  build-all         - Build for all platforms"
+	@echo "  test              - Run all tests with coverage"
+	@echo "  test-short        - Run short tests"
+	@echo "  test-v            - Run tests with verbose output"
+	@echo "  coverage          - Generate coverage HTML report"
+	@echo "  lint              - Run linters"
+	@echo "  vet               - Run go vet"
+	@echo "  fmt               - Format code"
+	@echo ""
+	@echo "Development:"
+	@echo "  dev               - Run in development mode"
+	@echo "  install           - Install to /usr/local/bin"
+	@echo "  install-go        - Install to GOPATH/bin"
+	@echo "  clean             - Clean build artifacts"
+	@echo "  deps              - Tidy and verify dependencies"
+	@echo ""
+	@echo "Release & Distribution:"
+	@echo "  tag               - Create a new git tag (make tag VERSION=v1.0.0)"
+	@echo "  release           - Run GoReleaser (requires git tag)"
+	@echo "  release-snapshot  - Create snapshot release (local testing)"
+	@echo "  release-dry-run   - Dry run release (test without publishing)"
+	@echo "  completions       - Generate shell completions"
+	@echo "  docker            - Build Docker image"
+	@echo "  check-goreleaser  - Validate GoReleaser configuration"
+	@echo "  install-goreleaser - Install GoReleaser"
+	@echo ""
+	@echo "Other:"
+	@echo "  generate          - Run go generate"
+	@echo "  outdated          - Check for outdated dependencies"
+	@echo "  audit             - Run security audit"
+	@echo "  help              - Show this help message"

@@ -1,0 +1,147 @@
+name: regex-builder
+version: "1.0.0"
+description: Build and test regular expressions for grep, sed, awk, or any tool
+usage: "regex-builder <description>"
+category: text-processing
+author: scmd-evaluation
+
+args:
+  - name: pattern_description
+    description: What you want to match (e.g., 'email addresses', 'IP addresses', 'dates')
+    required: false
+  - name: tool
+    description: Target tool (grep, sed, awk, perl, python) - affects syntax
+    required: false
+    default: "grep"
+
+prompt:
+  system: |
+    You are a regular expression expert. Help users build correct regex patterns.
+
+    Key principles:
+    1. Start simple, add complexity incrementally
+    2. Explain each regex component
+    3. Provide test cases (both matching and non-matching)
+    4. Show the pattern in context (grep -E, sed, awk)
+    5. Warn about edge cases
+    6. Offer both basic and extended regex versions
+
+    Common patterns to know:
+    - Email: [A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}
+    - IPv4: \b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b
+    - Date: \d{4}-\d{2}-\d{2} (or variations)
+    - URL: https?://[^\s]+
+    - Phone: various formats
+
+  template: |
+    {{if .pattern_description}}
+    I need a regex pattern to match: {{.pattern_description}}
+    {{else if .stdin}}
+    I need a regex pattern for this input:
+    ```
+    {{.stdin}}
+    ```
+    {{else}}
+    I need help building a regular expression.
+    {{end}}
+
+    {{if .tool}}Target tool: {{.tool}}{{end}}
+
+    Please provide:
+
+    1. **Simple Pattern** (start here):
+       ```
+       [basic regex pattern]
+       ```
+       - Explanation: What each part matches
+       - Example: `echo "test" | grep -E "pattern"`
+
+    2. **Robust Pattern** (production-ready):
+       ```
+       [more comprehensive pattern]
+       ```
+       - Handles edge cases
+       - Example usage
+
+    3. **Test Cases**:
+       ```bash
+       # Should match:
+       echo "example1" | grep -E "pattern"  # ✓ matches
+       echo "example2" | grep -E "pattern"  # ✓ matches
+
+       # Should NOT match:
+       echo "bad1" | grep -E "pattern"      # ✗ doesn't match
+       echo "bad2" | grep -E "pattern"      # ✗ doesn't match
+       ```
+
+    4. **Tool-Specific Usage**:
+       {{if eq .tool "grep"}}
+       ```bash
+       # grep -E (extended regex)
+       grep -E "pattern" file.txt
+
+       # With line numbers and color
+       grep -En --color "pattern" file.txt
+       ```
+       {{else if eq .tool "sed"}}
+       ```bash
+       # sed substitution
+       sed -E 's/pattern/replacement/g' file.txt
+
+       # In-place editing (backup first!)
+       sed -i.bak -E 's/pattern/replacement/g' file.txt
+       ```
+       {{else if eq .tool "awk"}}
+       ```bash
+       # awk pattern matching
+       awk '/pattern/ {print $0}' file.txt
+
+       # With field extraction
+       awk '/pattern/ {print $1, $3}' file.txt
+       ```
+       {{else}}
+       ```bash
+       # General usage
+       grep -E "pattern" file.txt
+       sed -E 's/pattern/replacement/' file.txt
+       ```
+       {{end}}
+
+    5. **Breakdown**:
+       | Part | Meaning | Example |
+       |------|---------|---------|
+       | `^` | Start of line | `^Hello` matches "Hello world" |
+       | [each component] | [explanation] | [example] |
+
+    6. **Common Pitfalls**:
+       - ⚠️ [pitfall 1 and how to avoid]
+       - ⚠️ [pitfall 2 and how to avoid]
+
+    7. **Online Testing**:
+       - Test at: regex101.com
+       - Copy this pattern: `[your pattern]`
+
+model:
+  temperature: 0.1
+  max_tokens: 2048
+
+examples:
+  - "scmd regex-builder 'email addresses'"
+  - "scmd regex-builder 'IPv4 addresses'"
+  - "scmd regex-builder 'phone numbers' --tool sed"
+  - "cat sample.txt | scmd regex-builder"
+  - "scmd regex-builder 'dates in YYYY-MM-DD format'"
+
+tags:
+  - regex
+  - regular-expressions
+  - grep
+  - sed
+  - awk
+  - pattern-matching
+
+metadata:
+  difficulty: super-hard
+  time_saved: "15-45 minutes"
+  use_frequency: weekly
+  pain_point: "Regex syntax is cryptic and easy to get wrong"

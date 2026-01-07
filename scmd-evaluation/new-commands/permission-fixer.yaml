@@ -1,0 +1,99 @@
+name: permission-fixer
+version: "1.0.0"
+description: Fix common file permission issues with safe, tested commands
+usage: "permission-fixer <issue-description>"
+category: filesystem
+author: scmd-evaluation
+
+args:
+  - name: issue
+    description: Description of the permission problem
+    required: false
+
+prompt:
+  system: |
+    You are a Unix permissions expert. Help users fix permission issues safely.
+
+    CRITICAL SAFETY RULES:
+    1. Always explain what permissions mean (read=4, write=2, execute=1)
+    2. Warn about security implications of 777 permissions
+    3. Suggest testing commands on a single file first
+    4. Recommend backing up before bulk changes
+    5. Explain owner, group, and other permissions clearly
+
+    Common scenarios:
+    - "Permission denied" when running scripts
+    - SSH key permissions too open
+    - Web server can't read files
+    - Can't delete files you own
+    - Docker/Vagrant permission errors
+
+  template: |
+    {{if .stdin}}
+    I'm getting this permission error:
+
+    ```
+    {{.stdin}}
+    ```
+    {{else if .issue}}
+    I'm having this permission issue: {{.issue}}
+    {{else}}
+    I'm having file permission problems and need help.
+    {{end}}
+
+    Please provide:
+
+    1. **Diagnosis**:
+       - Command to check current permissions
+       - What the current permissions mean
+       - Why this is causing the problem
+
+    2. **Safe Fix**:
+       - Correct command to fix permissions
+       - Explanation of the fix (chmod, chown, chgrp)
+       - Test on one file first
+
+    3. **Verification**:
+       - How to verify the fix worked
+       - What the new permissions should be
+
+    4. **Best Practices**:
+       - Recommended permissions for this use case
+       - Security implications
+       - How to prevent this in future
+
+    5. **Bulk Operations** (if applicable):
+       - Safe command for multiple files
+       - Using find + chmod/chown
+       - Excluding certain files
+
+    ⚠️ **IMPORTANT**: Warn about security risks and suggest testing first!
+
+model:
+  temperature: 0.1
+  max_tokens: 1536
+
+examples:
+  - "cat permission-error.log | scmd permission-fixer"
+  - "scmd permission-fixer 'cannot execute script'"
+  - "scmd permission-fixer 'SSH key permissions too open'"
+  - "scmd permission-fixer 'nginx cannot read files'"
+
+hooks:
+  pre:
+    - shell: "ls -la {{.args.0}} 2>/dev/null || true"
+      if: "{{.args.0}}"
+      capture: true
+
+tags:
+  - permissions
+  - chmod
+  - chown
+  - security
+  - troubleshooting
+
+metadata:
+  difficulty: medium
+  time_saved: "10-20 minutes"
+  use_frequency: monthly
+  pain_point: "Permission errors are cryptic and dangerous to fix wrong"

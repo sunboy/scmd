@@ -1,0 +1,16 @@
+# npm package ignore file for scmd
+
+# Development files
+tmp/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Keep these files
+!install.js
+!uninstall.js
+!package.json
+!README.md
+!LICENSE
