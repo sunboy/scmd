@@ -10,7 +10,7 @@ before:
     # Ensure dependencies are up to date
     - go mod tidy
     # Download llama-server binaries for bundling
-    - sh scripts/download-llama-server.sh
+    - bash scripts/download-llama-server.sh
     # Note: Shell completions are pre-generated and committed to completions/
 
 builds:
