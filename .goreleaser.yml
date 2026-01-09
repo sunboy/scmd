@@ -55,6 +55,20 @@ archives:
     formats:
       - tar.gz
       - zip
+  - id: homebrew
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_
+      {{- if eq .Os "darwin" }}macOS
+      {{- else }}{{ .Os }}{{ end }}_
+      {{- .Arch }}_brew
+    files:
+      - README.md
+      - LICENSE
+      - INSTALL.md
+      - CHANGELOG.md
+      - completions/*
+    formats:
+      - tar.gz
 
 checksum:
   name_template: 'checksums.txt'
@@ -88,12 +102,14 @@ changelog:
 # Homebrew tap
 brews:
   - name: scmd
+    ids:
+      - homebrew
     repository:
-      owner: scmd
+      owner: sunboy
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
-    homepage: https://github.com/scmd/scmd
+    homepage: https://github.com/sunboy/scmd
     description: "AI-powered slash commands for any terminal. Works offline by default."
     license: MIT
     commit_author:
@@ -268,5 +284,5 @@ release:
 # Universal binaries for macOS (combine amd64 and arm64)
 universal_binaries:
   - id: scmd
-    replace: false
+    replace: true
     name_template: 'scmd'

@@ -11,7 +11,7 @@ const https = require('https');
 const { execSync } = require('child_process');
 
 // Configuration
-const REPO = 'scmd/scmd';
+const REPO = 'sunboy/scmd';
 const GITHUB_API = 'https://api.github.com';
 const GITHUB_RELEASES = 'https://github.com';
 
