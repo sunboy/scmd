@@ -6,7 +6,7 @@ version: 2
 before:
   hooks:
     # Run short tests before building (excludes e2e tests that require binary)
-    - go test -short -race $(go list ./... | grep -v '/tests/e2e')
+    - sh -c 'go test -short -race $(go list ./... | grep -v "/tests/e2e")'
     # Ensure dependencies are up to date
     - go mod tidy
     # Generate shell completions
