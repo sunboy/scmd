@@ -12,7 +12,7 @@ func Default() *Config {
 			Default: "local",
 			Local: LocalBackendConfig{
 				Model:         "qwen2.5-coder-1.5b",
-				ContextLength: 8192,
+				ContextLength: 0, // 0 = use model's native context size
 				GPULayers:     0,
 				Threads:       0,
 			},

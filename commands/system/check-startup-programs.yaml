@@ -1,0 +1,157 @@
+name: check-startup-programs
+version: 1.0.0
+description: List and manage programs that start on boot/login
+category: system
+author: scmd team
+license: MIT
+
+args:
+  - name: action
+    description: Action (list, disable, enable)
+    required: false
+    default: "list"
+  - name: program
+    description: Program to disable/enable
+    required: false
+
+prompt:
+  system: |
+    You are a startup program management expert.
+    Help users control what runs on boot/login.
+
+  template: |
+    {{.action}} startup programs{{if .program}} for {{.program}}{{end}}.
+
+    **Detect OS and list startup items:**
+
+    **macOS:**
+    ```bash
+    # User login items
+    osascript -e 'tell application "System Events" to get the name of every login item'
+
+    # LaunchAgents (user)
+    ls -1 ~/Library/LaunchAgents/
+
+    # LaunchDaemons (system)
+    ls -1 /Library/LaunchDaemons/
+    ls -1 /System/Library/LaunchDaemons/
+
+    # Details
+    launchctl list | grep -v "com.apple"
+    ```
+
+    **Linux (systemd):**
+    ```bash
+    # User services
+    systemctl --user list-unit-files --state=enabled
+
+    # System services
+    systemctl list-unit-files --state=enabled
+
+    # Check specific service
+    systemctl is-enabled {{.program}}
+    ```
+
+    **Present startup programs:**
+    ```
+    Startup Programs
+    ═══════════════════════════════════════
+
+    User Login Items (6):
+    ├─ ✓ Dropbox           [Enabled]  File sync
+    ├─ ✓ Slack             [Enabled]  Communication
+    ├─ ✓ Alfred            [Enabled]  Launcher
+    ├─ ○ iTerm             [Disabled] Terminal
+    ├─ ✓ Backup Agent      [Enabled]  Automated backup
+    └─ ✓ Docker Desktop    [Enabled]  Container runtime
+
+    System Services (4):
+    ├─ ✓ nginx             [Enabled]  Web server
+    ├─ ✓ postgresql        [Enabled]  Database
+    ├─ ○ redis             [Disabled] Cache
+    └─ ✓ ssh               [Enabled]  Remote access
+
+    Performance Impact:
+    ─────────────────────────────────────
+    High:   Docker Desktop, postgresql
+    Medium: Dropbox, nginx
+    Low:    Slack, Alfred, Backup Agent
+
+    Boot time estimate: 45 seconds
+    ```
+
+    {{if eq .action "disable"}}
+    **Disable {{.program}}:**
+    ```bash
+    {{if .program}}
+    # macOS
+    launchctl unload ~/Library/LaunchAgents/{{.program}}.plist
+    # or
+    osascript -e 'tell application "System Events" to delete login item "{{.program}}"'
+
+    # Linux
+    systemctl --user disable {{.program}}
+    # or
+    sudo systemctl disable {{.program}}
+
+    echo "✅ {{.program}} will no longer start on boot"
+    echo "To start it now: open {{.program}} (macOS) or systemctl start {{.program}} (Linux)"
+    {{else}}
+    echo "Specify program to disable: scmd /check-startup-programs disable PROGRAM_NAME"
+    {{end}}
+    ```
+    {{end}}
+
+    {{if eq .action "enable"}}
+    **Enable {{.program}}:**
+    ```bash
+    {{if .program}}
+    # macOS
+    launchctl load ~/Library/LaunchAgents/{{.program}}.plist
+    # or add to login items via System Preferences
+
+    # Linux
+    systemctl --user enable {{.program}}
+    # or
+    sudo systemctl enable {{.program}}
+
+    echo "✅ {{.program}} will start on boot"
+    echo "To start it now: systemctl start {{.program}}"
+    {{else}}
+    echo "Specify program to enable: scmd /check-startup-programs enable PROGRAM_NAME"
+    {{end}}
+    ```
+    {{end}}
+
+    **Recommendations:**
+    ```
+    💡 Startup Optimization Tips:
+
+    Consider disabling:
+    • Docker Desktop (if not always needed)
+      Start manually when needed
+
+    • Backup agents during work hours
+      Schedule for off-hours instead
+
+    • Chat apps (Slack, Teams)
+      Launch when you start work
+
+    Keep enabled:
+    • Critical services (nginx, postgresql if running servers)
+    • Security software
+    • Essential system tools
+
+    Expected improvement:
+    • Boot time: 45s → 25s (44% faster)
+    • Memory at startup: 4GB → 2.5GB
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 2500
+
+examples:
+  - scmd /check-startup-programs
+  - scmd /check-startup-programs disable Docker
+  - scmd /check-startup-programs enable nginx

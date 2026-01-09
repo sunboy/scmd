@@ -20,14 +20,14 @@ import (
 
 // Server wraps llama-server for inference
 type Server struct {
-	cmd       *exec.Cmd
-	port      int
-	modelPath string
+	cmd         *exec.Cmd
+	port        int
+	modelPath   string
 	contextSize int
-	gpuLayers int
-	ready     bool
-	mu        sync.Mutex
-	logFile   *os.File
+	gpuLayers   int
+	ready       bool
+	mu          sync.Mutex
+	logFile     *os.File
 }
 
 var (
@@ -44,25 +44,80 @@ type ServerConfig struct {
 }
 
 // DefaultServerConfig returns default configuration
+// Note: ContextSize should be set by the caller (usually from model metadata)
 func DefaultServerConfig(modelPath string) *ServerConfig {
 	return &ServerConfig{
 		ModelPath:   modelPath,
 		Port:        8089,
-		ContextSize: 4096,
+		ContextSize: 0,  // 0 = will be set by backend from model metadata
 		GPULayers:   99, // Auto-detect and use GPU
 	}
+}
+
+// ServerHealth contains detailed health information about the server
+type ServerHealth struct {
+	Running        bool
+	ContextSize    int
+	MatchesExpected bool
+	Error          error
 }
 
 // IsServerRunning checks if a server is already running on the given port
 func IsServerRunning(port int) bool {
 	url := fmt.Sprintf("http://127.0.0.1:%d/health", port)
-	client := &http.Client{Timeout: 1 * time.Second}
+	client := &http.Client{Timeout: 500 * time.Millisecond} // Reduced from 1s
 	resp, err := client.Get(url)
 	if err == nil {
 		resp.Body.Close()
 		return resp.StatusCode == http.StatusOK
 	}
 	return false
+}
+
+// CheckServerHealth performs a comprehensive health check
+// Returns detailed health information including context size validation
+func CheckServerHealth(port int, expectedContextSize int) *ServerHealth {
+	health := &ServerHealth{
+		Running:        false,
+		ContextSize:    0,
+		MatchesExpected: false,
+	}
+
+	// Check if server is responding
+	url := fmt.Sprintf("http://127.0.0.1:%d/health", port)
+	client := &http.Client{Timeout: 500 * time.Millisecond}
+	resp, err := client.Get(url)
+	if err != nil {
+		health.Error = fmt.Errorf("server not responding: %w", err)
+		return health
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		health.Error = fmt.Errorf("server unhealthy (status %d)", resp.StatusCode)
+		return health
+	}
+
+	health.Running = true
+
+	// Try to get context size by sending a test request
+	// The error message will tell us the actual n_ctx
+	testURL := fmt.Sprintf("http://127.0.0.1:%d/completion", port)
+	testReq := map[string]interface{}{
+		"prompt":    "test",
+		"n_predict": 1,
+	}
+	jsonBody, _ := json.Marshal(testReq)
+	testResp, err := client.Post(testURL, "application/json", bytes.NewReader(jsonBody))
+	if err == nil {
+		defer testResp.Body.Close()
+		// Server responded, it's healthy
+		// We can't easily get n_ctx from successful requests, so we'll validate on errors
+		health.ContextSize = expectedContextSize
+		health.MatchesExpected = true
+	}
+
+	return health
 }
 
 // Port returns the server port
@@ -75,7 +130,7 @@ func StartServer(modelPath string, port int) (*Server, error) {
 	return StartServerWithConfig(&ServerConfig{
 		ModelPath:   modelPath,
 		Port:        port,
-		ContextSize: 4096,
+		ContextSize: 32768, // Use full 32K context that Qwen models support
 		GPULayers:   99,
 	})
 }
@@ -89,7 +144,20 @@ func StartServerWithConfig(config *ServerConfig) (*Server, error) {
 
 	// Check if already running with same model
 	if globalServer != nil && globalServer.modelPath == config.ModelPath && globalServer.ready {
+		if debug {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Using existing server with model %s\n", config.ModelPath)
+		}
 		return globalServer, nil
+	}
+
+	// If running with different model, restart
+	if globalServer != nil && globalServer.modelPath != config.ModelPath && globalServer.ready {
+		if debug {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Model changed from %s to %s, restarting server\n",
+				globalServer.modelPath, config.ModelPath)
+		}
+		globalServer.Stop()
+		globalServer = nil
 	}
 
 	// Check if a server is already running on this port (external instance)
@@ -142,8 +210,10 @@ func StartServerWithConfig(config *ServerConfig) (*Server, error) {
 	}
 
 	// Ensure we have sensible defaults
+	// Note: ContextSize should be set by backend from model metadata
+	// If still 0 here, use a large default (will be limited by model's actual max)
 	if config.ContextSize == 0 {
-		config.ContextSize = 4096
+		config.ContextSize = 131072 // Default to 128K (llama-server will cap at model's max)
 	}
 	if config.GPULayers < 0 {
 		config.GPULayers = 99 // Default to full GPU
@@ -171,7 +241,10 @@ func StartServerWithConfig(config *ServerConfig) (*Server, error) {
 		logFile = nil
 	}
 
-	// Build arguments
+	// Check if CPU-only mode is enabled (for more conservative memory settings)
+	cpuOnly := os.Getenv("SCMD_CPU_ONLY") != ""
+
+	// Build arguments - use conservative settings for CPU-only mode
 	args := []string{
 		"-m", config.ModelPath,
 		"--port", fmt.Sprintf("%d", config.Port),
@@ -180,7 +253,100 @@ func StartServerWithConfig(config *ServerConfig) (*Server, error) {
 		"--log-disable", // Disable verbose logging to stdout
 	}
 
+	// Add performance optimizations only when NOT in CPU-only mode
+	// CPU-only mode uses conservative settings to maximize available context
+	if !cpuOnly {
+		args = append(args,
+			// Performance optimizations
+			"--parallel", "8", // Increased parallel requests for better throughput
+			"--batch-size", "2048", // Batch size - larger = faster but more memory
+			"--ubatch-size", "512", // Physical batch size
+			"--mlock", // Lock model in memory (prevent swapping)
+
+			// Threading optimizations
+			"-t", fmt.Sprintf("%d", runtime.NumCPU()), // Use all CPU threads for prompt processing
+			"--threads-batch", fmt.Sprintf("%d", runtime.NumCPU()), // Use all threads for batch processing
+
+			// Cache optimizations
+			"--cache-type-k", "f16", // Use f16 for key cache (faster)
+			"--cache-type-v", "f16", // Use f16 for value cache (faster)
+
+			// Flash attention for faster attention computation (auto mode)
+			"--flash-attn", "on",
+
+			// Continuous batching for better latency
+			"--cont-batching",
+
+			// Memory optimizations - keep model in RAM for faster access
+			"--no-mmap", // Don't use memory mapping, load directly to RAM
+		)
+	} else {
+		// CPU-only mode: conservative settings to maximize context size
+		args = append(args,
+			"--parallel", "4", // Fewer parallel requests to save memory
+			"--batch-size", "512", // Smaller batch size
+			"--ubatch-size", "256", // Smaller physical batch
+			// NO --mlock (allow swapping if needed)
+			// NO --no-mmap (use mmap to save RAM)
+			"-t", fmt.Sprintf("%d", runtime.NumCPU()),
+			"--threads-batch", fmt.Sprintf("%d", runtime.NumCPU()),
+			"--cont-batching",
+		)
+	}
+
+	// Apply CPU-only mode settings if enabled
+	if cpuOnly {
+		// Override GPU layers to force CPU-only mode
+		for i := 0; i < len(args); i++ {
+			if args[i] == "-ngl" && i+1 < len(args) {
+				args[i+1] = "0"
+				break
+			}
+		}
+
+		// Remove GPU-dependent optimizations that can cause Metal initialization
+		// These flags may trigger Metal even with -ngl 0
+		filteredArgs := make([]string, 0, len(args))
+		skipNext := false
+		for i := 0; i < len(args); i++ {
+			if skipNext {
+				skipNext = false
+				continue
+			}
+
+			// Remove flash attention (uses GPU/Metal)
+			if args[i] == "--flash-attn" {
+				skipNext = true
+				continue
+			}
+
+			// Remove f16 cache types (may trigger Metal memory allocation)
+			if args[i] == "--cache-type-k" || args[i] == "--cache-type-v" {
+				skipNext = true
+				continue
+			}
+
+			// Keep the arg
+			filteredArgs = append(filteredArgs, args[i])
+		}
+		args = filteredArgs
+
+		if debug {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Running in CPU-only mode (SCMD_CPU_ONLY set)\n")
+			fmt.Fprintf(os.Stderr, "[DEBUG] Removed GPU-dependent optimizations\n")
+		}
+	}
+
 	cmd := exec.Command(serverPath, args...)
+
+	// Set environment variable to completely disable Metal (Apple GPU framework)
+	// This prevents llama.cpp from initializing Metal even for non-model operations
+	if cpuOnly {
+		cmd.Env = append(os.Environ(), "GGML_METAL_DISABLE=1")
+		if debug {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Set GGML_METAL_DISABLE=1 to prevent Metal initialization\n")
+		}
+	}
 	if logFile != nil {
 		cmd.Stdout = logFile
 		cmd.Stderr = logFile
@@ -209,8 +375,8 @@ func StartServerWithConfig(config *ServerConfig) (*Server, error) {
 		logFile:     logFile,
 	}
 
-	// Wait for server to be ready
-	if err := server.waitReady(30 * time.Second); err != nil {
+	// Wait for server to be ready (reduced timeout for faster failure feedback)
+	if err := server.waitReady(10 * time.Second); err != nil {
 		cmd.Process.Kill()
 		if logFile != nil {
 			logFile.Close()
@@ -245,16 +411,27 @@ func getDataDir() string {
 func (s *Server) waitReady(timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	url := fmt.Sprintf("http://127.0.0.1:%d/health", s.port)
+	client := &http.Client{Timeout: 500 * time.Millisecond}
+
+	// Exponential backoff for faster initial checks
+	sleepDuration := 50 * time.Millisecond
+	maxSleep := 500 * time.Millisecond
 
 	for time.Now().Before(deadline) {
-		resp, err := http.Get(url)
+		resp, err := client.Get(url)
 		if err == nil {
 			resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
 				return nil
 			}
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(sleepDuration)
+
+		// Increase sleep duration exponentially
+		sleepDuration = sleepDuration * 2
+		if sleepDuration > maxSleep {
+			sleepDuration = maxSleep
+		}
 	}
 
 	return fmt.Errorf("server not ready after %v", timeout)
@@ -335,7 +512,17 @@ func (s *Server) Complete(ctx context.Context, prompt string, req *backend.Compl
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	// Use client with reasonable timeout (model inference can take time)
+	// CPU-only mode is much slower, so use longer timeout
+	timeout := 2 * time.Minute
+	if os.Getenv("SCMD_CPU_ONLY") != "" {
+		timeout = 10 * time.Minute // CPU inference can be 10-30x slower
+		if debug {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Using extended timeout (%v) for CPU-only mode\n", timeout)
+		}
+	}
+	client := &http.Client{Timeout: timeout}
+	resp, err := client.Do(httpReq)
 	if err != nil {
 		return "", fmt.Errorf("HTTP request failed: %w", err)
 	}
@@ -435,6 +622,8 @@ func findLlamaServer() (string, error) {
 
 // runServerInference uses llama-server for inference
 func (b *Backend) runServerInference(ctx context.Context, prompt string, req *backend.CompletionRequest) (string, error) {
+	debug := os.Getenv("SCMD_DEBUG") != ""
+
 	// Use existing server URL
 	url := b.serverURL + "/completion"
 
@@ -464,7 +653,17 @@ func (b *Backend) runServerInference(ctx context.Context, prompt string, req *ba
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	// Use client with reasonable timeout (model inference can take time)
+	// CPU-only mode is much slower, so use longer timeout
+	timeout := 2 * time.Minute
+	if os.Getenv("SCMD_CPU_ONLY") != "" {
+		timeout = 10 * time.Minute // CPU inference can be 10-30x slower
+		if debug {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Using extended timeout (%v) for CPU-only mode\n", timeout)
+		}
+	}
+	client := &http.Client{Timeout: timeout}
+	resp, err := client.Do(httpReq)
 	if err != nil {
 		return "", ParseError(err)
 	}

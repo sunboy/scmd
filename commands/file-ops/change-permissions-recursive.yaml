@@ -1,0 +1,90 @@
+name: change-permissions-recursive
+version: 1.0.0
+description: Safely change file permissions recursively with preview
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: permissions
+    description: New permissions (e.g., 755, 644, u+x)
+    required: true
+  - name: path
+    description: Path to change permissions
+    required: true
+  - name: file_type
+    description: Apply to files, dirs, or both
+    required: false
+    default: "both"
+
+hooks:
+  pre:
+    - shell: echo "🔍 Scanning files to change permissions..."
+
+prompt:
+  system: |
+    You are a Unix permissions expert helping users safely change permissions.
+
+    **CRITICAL SAFETY:**
+    - ALWAYS show preview of what will be changed
+    - Count how many files/dirs will be affected
+    - Warn about dangerous permissions (777, world-writable)
+    - Explain what the permissions mean in plain English
+    - Suggest more secure alternatives if permissions are too open
+    - Never change permissions on system directories (/, /etc, /usr, /bin)
+
+  template: |
+    Change permissions to {{.permissions}} for {{.file_type}} in {{.path}}.
+
+    Step 1: Validate path is not a system directory
+    If {{.path}} is /, /etc, /usr, /bin, /sbin -> ABORT with error
+
+    Step 2: Explain the permissions
+    Parse {{.permissions}}:
+    - 755 = rwxr-xr-x (owner: all, group: read+execute, others: read+execute)
+    - 644 = rw-r--r-- (owner: read+write, group: read, others: read)
+    - u+x = add execute for user
+    ...explain what this means
+
+    Step 3: Security check
+    If permissions are 777, 666, or world-writable, show WARNING:
+    "⚠️  Warning: These permissions allow anyone to read/write/execute. This is usually not recommended."
+
+    Step 4: Show preview
+    ```bash
+    # Count affected items
+    find {{.path}} -type f | wc -l
+    find {{.path}} -type d | wc -l
+    ```
+
+    Step 5: Show sample of what will change
+    ```bash
+    find {{.path}} -type f -ls | head -10
+    ```
+
+    Step 6: Ask for confirmation
+    "Ready to change permissions on X files and Y directories. Type 'yes' to proceed."
+
+    Step 7: Execute changes
+    ```bash
+    # For files only
+    find {{.path}} -type f -exec chmod {{.permissions}} {} \;
+
+    # For directories only
+    find {{.path}} -type d -exec chmod {{.permissions}} {} \;
+
+    # For both
+    chmod -R {{.permissions}} {{.path}}
+    ```
+
+    Step 8: Verify changes
+    Show sample of changed permissions.
+
+model:
+  temperature: 0.2
+  max_tokens: 2500
+
+examples:
+  - scmd /change-permissions-recursive 755 ./scripts
+  - scmd /change-permissions-recursive 644 ./docs files
+  - scmd /change-permissions-recursive u+x ./bin

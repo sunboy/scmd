@@ -258,8 +258,8 @@ Supported shells: bash, zsh, fish`,
 
 // slashInteractiveCmd starts interactive slash mode
 var slashInteractiveCmd = &cobra.Command{
-	Use:   "interactive",
-	Short: "Start interactive slash command mode",
+	Use:     "interactive",
+	Short:   "Start interactive slash command mode",
 	Aliases: []string{"i", "repl"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()

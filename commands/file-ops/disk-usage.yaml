@@ -1,0 +1,82 @@
+name: disk-usage
+version: 1.0.0
+description: Show disk usage with visual tree and largest directories
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: path
+    description: Path to analyze
+    required: false
+    default: "."
+  - name: depth
+    description: Maximum depth to analyze
+    required: false
+    default: "2"
+
+prompt:
+  system: |
+    You are a disk space analysis expert.
+    Help users understand disk usage with clear visualizations.
+
+    **REQUIREMENTS:**
+    - Show total disk space and available space
+    - List directories sorted by size (largest first)
+    - Show percentage of total for each directory
+    - Provide actionable cleanup suggestions
+    - Use human-readable sizes (GB, MB, etc.)
+
+  template: |
+    Analyze disk usage in {{.path}} with depth {{.depth}}.
+
+    Use the shell tool to execute:
+
+    1. Show overall disk space
+    ```bash
+    df -h {{.path}}
+    ```
+
+    2. Find largest directories
+    ```bash
+    du -h -d {{.depth}} {{.path}} 2>/dev/null | \
+      sort -rh | \
+      head -20
+    ```
+
+    3. Calculate percentage of total for top directories
+
+    Present results as:
+    ```
+    Disk Space Analysis: {{.path}}
+    ═══════════════════════════════════════
+
+    Overall:
+    Total:     250 GB
+    Used:      180 GB (72%)
+    Available:  70 GB
+
+    Largest Directories:
+    1. 45 GB  (25%)  ./node_modules
+    2. 32 GB  (18%)  ./build
+    3. 18 GB  (10%)  ./logs
+    ...
+    ```
+
+    Suggest cleanup strategies:
+    - Identify cache directories (node_modules, __pycache__, .cache)
+    - Old log files
+    - Build artifacts
+    - Duplicate files
+    - Unused dependencies
+
+    Provide safe cleanup commands.
+
+model:
+  temperature: 0.3
+  max_tokens: 2500
+
+examples:
+  - scmd /disk-usage
+  - scmd /disk-usage ~/projects
+  - scmd /disk-usage / 1

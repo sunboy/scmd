@@ -203,21 +203,21 @@ func (t *ShellTool) DenyCommand(cmd string) {
 func getDefaultAllowedCommands() map[string]bool {
 	return map[string]bool{
 		// File operations (read-only)
-		"ls":     true,
-		"cat":    true,
-		"head":   true,
-		"tail":   true,
-		"find":   true,
-		"grep":   true,
-		"wc":     true,
-		"diff":   true,
-		"file":   true,
-		"stat":   true,
-		"du":     true,
-		"df":     true,
+		"ls":   true,
+		"cat":  true,
+		"head": true,
+		"tail": true,
+		"find": true,
+		"grep": true,
+		"wc":   true,
+		"diff": true,
+		"file": true,
+		"stat": true,
+		"du":   true,
+		"df":   true,
 
 		// Git commands
-		"git":    true,
+		"git": true,
 
 		// System info
 		"pwd":    true,
@@ -230,38 +230,38 @@ func getDefaultAllowedCommands() map[string]bool {
 		"printf": true,
 
 		// Network (read-only)
-		"curl":   true,
-		"wget":   true,
-		"ping":   true,
-		"dig":    true,
+		"curl":     true,
+		"wget":     true,
+		"ping":     true,
+		"dig":      true,
 		"nslookup": true,
 
 		// Development tools
-		"go":     true,
-		"python": true,
+		"go":      true,
+		"python":  true,
 		"python3": true,
-		"node":   true,
-		"npm":    true,
-		"cargo":  true,
-		"make":   true,
-		"docker": true,
+		"node":    true,
+		"npm":     true,
+		"cargo":   true,
+		"make":    true,
+		"docker":  true,
 		"kubectl": true,
 
 		// Text processing
-		"awk":    true,
-		"sed":    true,
-		"sort":   true,
-		"uniq":   true,
-		"cut":    true,
-		"tr":     true,
-		"jq":     true,
+		"awk":  true,
+		"sed":  true,
+		"sort": true,
+		"uniq": true,
+		"cut":  true,
+		"tr":   true,
+		"jq":   true,
 
 		// Common utilities
-		"test":   true,
-		"expr":   true,
-		"bc":     true,
-		"cal":    true,
-		"man":    true,
-		"help":   true,
+		"test": true,
+		"expr": true,
+		"bc":   true,
+		"cal":  true,
+		"man":  true,
+		"help": true,
 	}
 }

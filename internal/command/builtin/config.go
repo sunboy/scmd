@@ -115,7 +115,74 @@ func (c *ConfigCommand) showConfig(key string, execCtx *command.ExecContext) (*c
 }
 
 func (c *ConfigCommand) setConfig(key, value string, execCtx *command.ExecContext) (*command.Result, error) {
-	// TODO: Implement config setting
-	execCtx.UI.WriteLine(fmt.Sprintf("Setting %s to %s (not yet implemented)", key, value))
+	// Parse the value based on key type
+	cfg := execCtx.Config
+
+	// Map of valid keys to their types
+	validKeys := map[string]string{
+		"backends.default":              "string",
+		"backends.local.model":          "string",
+		"backends.local.context_length": "int",
+		"ui.streaming":                  "bool",
+		"ui.colors":                     "bool",
+		"ui.verbose":                    "bool",
+		"models.auto_download":          "bool",
+	}
+
+	keyType, valid := validKeys[key]
+	if !valid {
+		return &command.Result{
+			Success: false,
+			Error:   fmt.Sprintf("unknown configuration key: %s", key),
+			Suggestions: []string{
+				"Use 'scmd config' to see all available keys",
+			},
+		}, nil
+	}
+
+	// Update the config based on type
+	switch keyType {
+	case "string":
+		if err := cfg.Set(key, value); err != nil {
+			return &command.Result{
+				Success: false,
+				Error:   fmt.Sprintf("failed to set %s: %v", key, err),
+			}, nil
+		}
+	case "bool":
+		boolVal := value == "true" || value == "1" || value == "yes"
+		if err := cfg.Set(key, boolVal); err != nil {
+			return &command.Result{
+				Success: false,
+				Error:   fmt.Sprintf("failed to set %s: %v", key, err),
+			}, nil
+		}
+	case "int":
+		// Parse int value
+		var intVal int
+		if _, err := fmt.Sscanf(value, "%d", &intVal); err != nil {
+			return &command.Result{
+				Success: false,
+				Error:   fmt.Sprintf("invalid integer value for %s: %s", key, value),
+			}, nil
+		}
+		if err := cfg.Set(key, intVal); err != nil {
+			return &command.Result{
+				Success: false,
+				Error:   fmt.Sprintf("failed to set %s: %v", key, err),
+			}, nil
+		}
+	}
+
+	// Save the config
+	if err := config.Save(cfg); err != nil {
+		return &command.Result{
+			Success: false,
+			Error:   fmt.Sprintf("failed to save config: %v", err),
+		}, nil
+	}
+
+	execCtx.UI.WriteLine(fmt.Sprintf("Set %s = %s", key, value))
+	execCtx.UI.WriteLine(fmt.Sprintf("Configuration saved to %s", config.ConfigPath()))
 	return &command.Result{Success: true}, nil
 }

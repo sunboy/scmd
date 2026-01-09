@@ -19,9 +19,9 @@ import (
 // Model represents a downloadable model
 type Model struct {
 	Name        string `json:"name"`
-	Variant     string `json:"variant"`     // e.g., "Q4_K_M", "Q8_0"
+	Variant     string `json:"variant"` // e.g., "Q4_K_M", "Q8_0"
 	URL         string `json:"url"`
-	Size        int64  `json:"size"`        // bytes
+	Size        int64  `json:"size"` // bytes
 	SHA256      string `json:"sha256"`
 	Description string `json:"description"`
 	ContextSize int    `json:"context_size"`
@@ -61,9 +61,9 @@ var DefaultModels = []Model{
 	},
 	{
 		Name:        "qwen2.5-7b",
-		Variant:     "q4_k_m",
-		URL:         "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q4_k_m.gguf",
-		Size:        4680000000, // ~4.7GB
+		Variant:     "q3_k_m",
+		URL:         "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q3_k_m.gguf",
+		Size:        3810000000, // ~3.8GB
 		Description: "Qwen2.5 7B - Best quality, needs more RAM",
 		ContextSize: 32768,
 		ToolCalling: true,
@@ -130,6 +130,11 @@ func (m *ModelManager) GetModelPath(ctx context.Context, modelName string) (stri
 		return modelPath, nil
 	}
 
+	// In test mode, don't auto-download - return error instead
+	if os.Getenv("SCMD_TEST_MODE") == "1" {
+		return "", fmt.Errorf("model %s not found (auto-download disabled in test mode)", modelName)
+	}
+
 	// Download the model
 	fmt.Printf("Downloading %s (%s)...\n", model.Name, formatBytes(model.Size))
 	if err := m.downloadModel(ctx, model, modelPath); err != nil {
@@ -139,85 +144,72 @@ func (m *ModelManager) GetModelPath(ctx context.Context, modelName string) (stri
 	return modelPath, nil
 }
 
-// downloadModel downloads a model from URL
+// downloadModel downloads a model from URL with enhanced retry and resume support
 func (m *ModelManager) downloadModel(ctx context.Context, model *Model, destPath string) error {
-	req, err := http.NewRequestWithContext(ctx, "GET", model.URL, nil)
-	if err != nil {
-		return err
-	}
+	// Create enhanced downloader
+	downloader := NewEnhancedDownloader(DefaultDownloadConfig())
 
-	// Add headers required by HuggingFace
-	req.Header.Set("User-Agent", "scmd/1.0 (https://github.com/scmd/scmd)")
-
-	resp, err := m.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download failed: HTTP %d from %s", resp.StatusCode, model.URL)
-	}
-
-	// Create temp file
-	tmpPath := destPath + ".tmp"
-	f, err := os.Create(tmpPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	// Download with progress
-	var downloaded int64
-	buf := make([]byte, 32*1024)
-	hash := sha256.New()
-
-	for {
-		n, err := resp.Body.Read(buf)
-		if n > 0 {
-			if _, err := f.Write(buf[:n]); err != nil {
-				os.Remove(tmpPath)
-				return err
-			}
-			hash.Write(buf[:n])
-			downloaded += int64(n)
-
-			// Print progress
-			if model.Size > 0 {
-				pct := float64(downloaded) / float64(model.Size) * 100
-				fmt.Printf("\r  Progress: %.1f%% (%s / %s)", pct,
-					formatBytes(downloaded), formatBytes(model.Size))
-			}
+	// Simple progress display
+	var lastPercent int
+	progressCallback := func(current, total int64) {
+		if total <= 0 {
+			return
 		}
+		percent := int(float64(current) * 100 / float64(total))
+		if percent != lastPercent {
+			lastPercent = percent
+			fmt.Printf("\r  Progress: %d%% (%s / %s)", percent,
+				formatBytes(current), formatBytes(total))
+		}
+	}
 
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			os.Remove(tmpPath)
-			return err
-		}
+	// Download with all enhancements
+	if err := downloader.DownloadWithProgress(ctx, model.URL, destPath, model.Size, progressCallback); err != nil {
+		return err
 	}
 
 	fmt.Println() // New line after progress
 
 	// Verify checksum if provided
 	if model.SHA256 != "" {
-		gotHash := hex.EncodeToString(hash.Sum(nil))
-		if gotHash != model.SHA256 {
-			os.Remove(tmpPath)
-			return fmt.Errorf("checksum mismatch: expected %s, got %s", model.SHA256, gotHash)
+		fmt.Printf("  Verifying download...\n")
+		if err := verifyChecksum(destPath, model.SHA256); err != nil {
+			os.Remove(destPath)
+			return &DownloadError{
+				Stage:   "verification",
+				Err:     err,
+				Message: "Downloaded file checksum doesn't match expected value.",
+				Help: []string{
+					"The file may be corrupted during download",
+					"Try downloading again",
+					"Check your internet connection",
+				},
+			}
 		}
 	}
 
-	// Move to final location
-	f.Close()
-	if err := os.Rename(tmpPath, destPath); err != nil {
-		os.Remove(tmpPath)
+	fmt.Printf("  ✓ Downloaded: %s\n", destPath)
+	return nil
+}
+
+// verifyChecksum verifies the SHA256 checksum of a file
+func verifyChecksum(path string, expectedHash string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, f); err != nil {
 		return err
 	}
 
-	fmt.Printf("  Downloaded: %s\n", destPath)
+	gotHash := hex.EncodeToString(hash.Sum(nil))
+	if gotHash != expectedHash {
+		return fmt.Errorf("checksum mismatch: expected %s, got %s", expectedHash, gotHash)
+	}
+
 	return nil
 }
 
@@ -270,7 +262,7 @@ func (m *ModelManager) DeleteModel(name string) error {
 
 // GetDefaultModel returns the recommended default model
 func GetDefaultModel() string {
-	return "qwen3-4b" // Use qwen3-4b as default - widely available
+	return "qwen2.5-1.5b" // Use qwen2.5-1.5b as default - fast, lightweight, and efficient
 }
 
 func formatBytes(b int64) string {
@@ -288,12 +280,13 @@ func formatBytes(b int64) string {
 
 // Backend implements the LLM backend using llama.cpp
 type Backend struct {
-	modelManager *ModelManager
-	modelName    string
-	modelPath    string
-	contextSize  int
-	initialized  bool
-	mu           sync.Mutex
+	modelManager    *ModelManager
+	modelName       string
+	modelPath       string
+	contextSize     int // 0 = use model's native context size
+	contextSizeSet  bool
+	initialized     bool
+	mu              sync.Mutex
 
 	// These will be set when CGO binding is available
 	// For now, we use HTTP API to llama-server as fallback
@@ -303,9 +296,10 @@ type Backend struct {
 // New creates a new llama.cpp backend
 func New(dataDir string) *Backend {
 	return &Backend{
-		modelManager: NewModelManager(dataDir),
-		modelName:    GetDefaultModel(),
-		contextSize:  4096,
+		modelManager:   NewModelManager(dataDir),
+		modelName:      GetDefaultModel(),
+		contextSize:    0, // 0 = use model's native context size (no limits)
+		contextSizeSet: false,
 	}
 }
 
@@ -317,6 +311,36 @@ func (b *Backend) Name() string {
 // Type returns the backend type
 func (b *Backend) Type() backend.Type {
 	return backend.TypeLocal
+}
+
+// SetContextSize sets a custom context size limit (0 = use model's native size)
+func (b *Backend) SetContextSize(size int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.contextSize = size
+	b.contextSizeSet = true
+	b.initialized = false // Force re-initialization with new context size
+}
+
+// GetContextSize returns the effective context size
+func (b *Backend) GetContextSize() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// If explicitly set, use that
+	if b.contextSizeSet && b.contextSize > 0 {
+		return b.contextSize
+	}
+
+	// Otherwise, use model's native context size
+	for _, m := range DefaultModels {
+		if m.Name == b.modelName {
+			return m.ContextSize
+		}
+	}
+
+	// Fallback: use 32K as default for unknown models
+	return 32768
 }
 
 // Initialize initializes the backend
@@ -337,6 +361,25 @@ func (b *Backend) Initialize(ctx context.Context) error {
 	}
 	b.modelPath = modelPath
 
+	// Set context size from model metadata if not explicitly set
+	if !b.contextSizeSet || b.contextSize == 0 {
+		for _, m := range DefaultModels {
+			if m.Name == b.modelName {
+				b.contextSize = m.ContextSize
+				if debug {
+					fmt.Fprintf(os.Stderr, "[DEBUG] Using model's native context size: %d\n", b.contextSize)
+				}
+				break
+			}
+		}
+		// Fallback
+		if b.contextSize == 0 {
+			b.contextSize = 32768
+		}
+	} else if debug {
+		fmt.Fprintf(os.Stderr, "[DEBUG] Using custom context size: %d\n", b.contextSize)
+	}
+
 	// Auto-start llama-server if not already running
 	// This is the key fix from the evaluation feedback
 	if !IsServerRunning(8089) {
@@ -353,6 +396,9 @@ func (b *Backend) Initialize(ctx context.Context) error {
 
 			config := DefaultServerConfig(modelPath)
 
+			// Use backend's context size (respects user override or model's native size)
+			config.ContextSize = b.contextSize
+
 			// Detect resources and show performance info
 			if !quiet {
 				resources, err := DetectSystemResources()
@@ -363,7 +409,8 @@ func (b *Backend) Initialize(ctx context.Context) error {
 						modelSize = modelInfo.Size()
 					}
 					optimalConfig := CalculateOptimalConfig(resources, modelSize)
-					config.ContextSize = optimalConfig.ContextSize
+					// Don't override context size from auto-tuning - use backend's explicit value
+					// config.ContextSize = optimalConfig.ContextSize  // REMOVED
 					config.GPULayers = optimalConfig.GPULayers
 
 					// Show performance mode
@@ -373,7 +420,8 @@ func (b *Backend) Initialize(ctx context.Context) error {
 						fmt.Fprintln(os.Stderr, "   Tip: Use cloud backend for faster results: scmd -b openai")
 					} else if resources.HasGPU {
 						fmt.Fprintf(os.Stderr, "✅ GPU acceleration enabled (%s)\n", resources.GPUType)
-						fmt.Fprintln(os.Stderr, "   Expect ~2-5 seconds per query")
+						fmt.Fprintln(os.Stderr, "   Expected response time: 5-10 seconds (optimized)")
+						fmt.Fprintln(os.Stderr, "   First query may be slower due to model warmup")
 					}
 				}
 			}

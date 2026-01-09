@@ -18,6 +18,9 @@ import (
 
 // TestRepoWorkflow tests the complete repository workflow
 func TestRepoWorkflow(t *testing.T) {
+	// Allow localhost URLs for test server
+	t.Setenv("SCMD_ALLOW_LOCALHOST", "1")
+
 	// Setup test server serving sample repo
 	sampleRepoPath := filepath.Join("..", "..", "testdata", "sample-repo")
 
@@ -98,6 +101,9 @@ func TestRepoWorkflow(t *testing.T) {
 
 // TestMultipleRepoSearch tests searching across multiple repositories
 func TestMultipleRepoSearch(t *testing.T) {
+	// Allow localhost URLs for test server
+	t.Setenv("SCMD_ALLOW_LOCALHOST", "1")
+
 	// Create two test servers with different commands
 	repo1 := `name: repo1
 version: "1.0.0"
@@ -192,6 +198,9 @@ func TestPluginExecution(t *testing.T) {
 
 // TestCLIRepoCommands tests the CLI repo commands if binary exists
 func TestCLIRepoCommands(t *testing.T) {
+	// Allow localhost URLs for test server
+	t.Setenv("SCMD_ALLOW_LOCALHOST", "1")
+
 	// Build the binary
 	binary := filepath.Join(t.TempDir(), "scmd")
 	buildCmd := exec.Command("go", "build", "-o", binary, "../../cmd/scmd")
@@ -262,6 +271,9 @@ commands:
 
 // TestRepoInstallAndRun tests installing and running a command from repo
 func TestRepoInstallAndRun(t *testing.T) {
+	// Allow localhost URLs for test server
+	t.Setenv("SCMD_ALLOW_LOCALHOST", "1")
+
 	// Build the binary
 	binary := filepath.Join(t.TempDir(), "scmd")
 	buildCmd := exec.Command("go", "build", "-o", binary, "../../cmd/scmd")
@@ -322,6 +334,9 @@ func TestRepoInstallAndRun(t *testing.T) {
 
 // TestRepoShowCommand tests the repo show command
 func TestRepoShowCommand(t *testing.T) {
+	// Allow localhost URLs for test server
+	t.Setenv("SCMD_ALLOW_LOCALHOST", "1")
+
 	// Build the binary
 	binary := filepath.Join(t.TempDir(), "scmd")
 	buildCmd := exec.Command("go", "build", "-o", binary, "../../cmd/scmd")
@@ -360,6 +375,9 @@ func TestRepoShowCommand(t *testing.T) {
 
 // TestRepoUpdateCommand tests the repo update command
 func TestRepoUpdateCommand(t *testing.T) {
+	// Allow localhost URLs for test server
+	t.Setenv("SCMD_ALLOW_LOCALHOST", "1")
+
 	// Build the binary
 	binary := filepath.Join(t.TempDir(), "scmd")
 	buildCmd := exec.Command("go", "build", "-o", binary, "../../cmd/scmd")

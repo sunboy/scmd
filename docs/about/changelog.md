@@ -6,10 +6,26 @@ For the complete, detailed changelog, see [CHANGELOG.md](../CHANGELOG.md) in the
 
 ### [Unreleased]
 
-#### Production & Distribution Readiness
+#### Man Page Integration & Production Readiness (v0.2.0)
 
 **Added:**
 
+- **Man Page Integration**: New `/cmd` command that reads system man pages and generates exact commands from natural language queries
+  - Intelligent command detection (60+ common CLI tools)
+  - Automatic man page parsing for accurate command generation
+  - Fallback to general CLI knowledge when man pages unavailable
+  - Supports find, grep, sed, awk, tar, curl, git, docker, kubectl, and more
+- **Interactive Setup Wizard**: Beautiful guided first-run experience
+  - Four model presets: Fast (0.5B), Balanced (1.5B), Best (3B), Premium (7B)
+  - Clean single-line progress bar (no more 500-line spam)
+  - Production-grade downloads with retry logic and resume support
+  - Disk space validation before download
+  - Optional post-setup quick test
+- **Enhanced Model Selection**: Switched default from qwen3-4b (2.6GB) to qwen2.5-1.5b (1.0GB)
+  - 22% faster inference (5-8s avg response vs 6-10s)
+  - 61% smaller download size
+  - Improved quality with better tool calling support
+- **Built-in Review Command**: Code review functionality now built into core
 - **Multi-Platform Distribution**: Automated releases via GoReleaser for macOS, Linux, and Windows
 - **Homebrew Support**: Official Homebrew tap at `scmd/tap`
 - **npm Distribution**: Cross-platform installation via `scmd-cli` npm package
@@ -45,9 +61,39 @@ sudo rpm -i scmd_VERSION_linux_amd64.rpm
 
 **Enhanced:**
 
-- Updated README with all installation methods
+- **Model Performance**: Optimized llama.cpp configuration for 22% faster inference
+  - Context size increased from 1024 to 8192 tokens
+  - Flash attention enabled
+  - Continuous batching for multiple requests
+  - Memory locking for consistent performance
+  - Optimized KV cache (F16)
+- **Model Downloads**: Production-grade download system
+  - Retry logic with exponential backoff (3 attempts)
+  - Resume support using HTTP Range headers
+  - Disk space validation (1.2x file size buffer)
+  - Enhanced error messages with structured help
+- **7B Model URL**: Fixed qwen2.5-7b download (changed from Q4_K_M to Q3_K_M)
+  - Single file download (was multi-part)
+  - Reduced size from 4.7GB to 3.8GB
+- Updated README with all installation methods, benchmarks, and new features
 - Makefile with release and distribution targets
 - Shell completion generation command
+
+**Fixed:**
+
+- Setup wizard download URLs (now use DefaultModels instead of hardcoded URLs)
+- 7B model multi-part download issue
+- Context size errors on large files
+- Progress bar display (clean single-line instead of spam)
+
+**Performance Benchmarks** (M1 Mac, 8GB RAM):
+
+| Model | Avg Response | Tokens/sec | Quality |
+|-------|-------------|-----------|---------|
+| qwen2.5-0.5b | 3-5s | ~45 tok/s | ⭐⭐⭐ |
+| qwen2.5-1.5b | 5-8s | ~30 tok/s | ⭐⭐⭐⭐ |
+| qwen2.5-3b | 8-12s | ~18 tok/s | ⭐⭐⭐⭐⭐ |
+| qwen2.5-7b | 15-25s | ~8 tok/s | ⭐⭐⭐⭐⭐ |
 
 ### [0.1.0] - 2025-01-06
 

@@ -1,0 +1,125 @@
+name: find-and-replace-filename
+version: 1.0.0
+description: Find and replace text in filenames across directory
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: find_text
+    description: Text to find in filenames
+    required: true
+  - name: replace_text
+    description: Text to replace with
+    required: true
+  - name: path
+    description: Directory to search
+    required: false
+    default: "."
+  - name: recursive
+    description: Search recursively (true/false)
+    required: false
+    default: "false"
+
+prompt:
+  system: |
+    You are a filename manipulation expert.
+
+    **SAFETY CRITICAL:**
+    - ALWAYS show complete preview before renaming
+    - Check for name collisions (would overwrite existing files)
+    - Validate replacement won't create invalid filenames
+    - Support undo (provide reverse commands)
+    - Never rename system files
+    - Preserve file extensions
+
+  template: |
+    Find and replace "{{.find_text}}" with "{{.replace_text}}" in filenames at {{.path}}.
+    Recursive: {{.recursive}}
+
+    Step 1: Find all matching files
+    ```bash
+    {{if eq .recursive "true"}}
+    find {{.path}} -type f -name "*{{.find_text}}*"
+    {{else}}
+    find {{.path}} -maxdepth 1 -type f -name "*{{.find_text}}*"
+    {{end}}
+    ```
+
+    Step 2: Generate preview of all renames
+    For each file, show:
+    ```
+    Filename Replacements Preview:
+    ═══════════════════════════════════════
+
+    1. old-{{.find_text}}-file.txt
+       → old-{{.replace_text}}-file.txt
+
+    2. {{.find_text}}_document.pdf
+       → {{.replace_text}}_document.pdf
+
+    ...
+    ```
+
+    Step 3: Validate replacements
+    Check for:
+    - Name collisions (would overwrite existing file)
+    - Invalid characters in new names (/, \, :, etc.)
+    - Files that won't change (find_text not in name)
+
+    If collisions found:
+    ```
+    ⚠️  ERROR: Name Collisions Detected!
+
+    new-{{.replace_text}}-file.txt already exists
+    Would be overwritten by: old-{{.find_text}}-file.txt
+
+    Aborting to prevent data loss.
+    ```
+
+    Step 4: Ask for confirmation
+    "Rename X files? Type 'yes' to proceed."
+
+    Step 5: Execute renames
+    ```bash
+    {{if eq .recursive "true"}}
+    find {{.path}} -type f -name "*{{.find_text}}*" | while read file; do
+      dir=$(dirname "$file")
+      old_name=$(basename "$file")
+      new_name=$(echo "$old_name" | sed "s/{{.find_text}}/{{.replace_text}}/g")
+      mv "$file" "$dir/$new_name"
+    done
+    {{else}}
+    for file in {{.path}}/*{{.find_text}}*; do
+      new_name=$(echo "$file" | sed "s/{{.find_text}}/{{.replace_text}}/g")
+      mv "$file" "$new_name"
+    done
+    {{end}}
+    ```
+
+    Step 6: Verify and report
+    ```
+    ✅ Rename Complete!
+
+    Renamed: 15 files
+    Failed:  0
+    Skipped: 2 (no match)
+    ```
+
+    Step 7: Provide undo script
+    ```bash
+    # To undo these changes, run:
+    find {{.path}} -name "*{{.replace_text}}*" | while read file; do
+      new_name=$(echo "$file" | sed "s/{{.replace_text}}/{{.find_text}}/g")
+      mv "$file" "$new_name"
+    done
+    ```
+
+model:
+  temperature: 0.2
+  max_tokens: 2500
+
+examples:
+  - scmd /find-and-replace-filename "draft" "final" ./docs
+  - scmd /find-and-replace-filename "test_" "prod_" . true
+  - scmd /find-and-replace-filename " " "_" ~/photos

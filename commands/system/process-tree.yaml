@@ -1,0 +1,135 @@
+name: process-tree
+version: 1.0.0
+description: Show process tree with resource usage and relationships
+category: system
+author: scmd team
+license: MIT
+
+args:
+  - name: pid
+    description: Show tree for specific PID (optional, shows all if not specified)
+    required: false
+  - name: user
+    description: Filter by user
+    required: false
+
+prompt:
+  system: |
+    You are a process management expert.
+    Show process hierarchies and resource usage.
+
+  template: |
+    Show process tree{{if .pid}} for PID {{.pid}}{{end}}{{if .user}} (user: {{.user}}){{end}}.
+
+    **Get process tree:**
+    ```bash
+    {{if .pid}}
+    # macOS
+    pstree -p {{.pid}} 2>/dev/null || ps -p {{.pid}} -o pid,ppid,user,%cpu,%mem,command
+
+    # Linux
+    pstree -p -s {{.pid}} 2>/dev/null || ps --forest -p {{.pid}} -o pid,ppid,user,%cpu,%mem,cmd
+    {{else}}
+    # macOS
+    pstree -u {{.user}} 2>/dev/null || ps aux{{if .user}} | grep {{.user}}{{end}}
+
+    # Linux
+    pstree -u {{.user}} 2>/dev/null || ps --forest -u {{.user}} 2>/dev/null || ps aux{{if .user}} | grep {{.user}}{{end}}
+    {{end}}
+    ```
+
+    **Enhance with resource info:**
+    ```bash
+    ps -eo pid,ppid,user,%cpu,%mem,rss,command{{if .user}} | grep {{.user}}{{end}} | sort -k4 -rn
+    ```
+
+    **Present tree:**
+    ```
+    Process Tree{{if .pid}} (PID {{.pid}}){{end}}
+    ═══════════════════════════════════════
+
+    systemd (1)  [root]  0.1% CPU, 8MB RAM
+    ├─ sshd (850)  [root]  0.0% CPU, 12MB RAM
+    │  └─ sshd (1234)  [sandeep]  0.2% CPU, 15MB RAM
+    │     └─ bash (1235)  [sandeep]  0.0% CPU, 4MB RAM
+    │        └─ node (2456)  [sandeep]  45.2% CPU, 850MB RAM  ⚠️
+    │           ├─ node (2457)  [sandeep]  12.3% CPU, 120MB RAM
+    │           └─ node (2458)  [sandeep]  8.5% CPU, 95MB RAM
+    ├─ nginx (920)  [www-data]  2.1% CPU, 45MB RAM
+    │  ├─ nginx (921)  [www-data]  1.2% CPU, 32MB RAM
+    │  └─ nginx (922)  [www-data]  0.9% CPU, 28MB RAM
+    └─ postgres (1500)  [postgres]  5.4% CPU, 256MB RAM
+       ├─ postgres (1501)  [postgres]  2.1% CPU, 128MB RAM
+       └─ postgres (1502)  [postgres]  1.8% CPU, 115MB RAM
+
+    Summary:
+    ─────────────────────────────────────
+    Total processes: 12
+    Total CPU: 79.8%
+    Total RAM: 1,708 MB
+
+    Top CPU consumers:
+    1. node (2456)    45.2%  ⚠️
+    2. node (2457)    12.3%
+    3. postgres (1500)  5.4%
+
+    Top memory consumers:
+    1. node (2456)     850 MB  ⚠️
+    2. postgres (1500) 256 MB
+    3. postgres (1501) 128 MB
+    ```
+
+    **Process details:**
+    {{if .pid}}
+    ```bash
+    # Get detailed info
+    ps -p {{.pid}} -o pid,ppid,user,start,%cpu,%mem,rss,vsz,stat,command
+
+    # Parent process
+    ppid=$(ps -p {{.pid}} -o ppid=)
+    ps -p $ppid -o pid,command
+
+    # Child processes
+    pgrep -P {{.pid}}
+    ```
+
+    ```
+    Process Details: {{.pid}}
+    ─────────────────────────────────────
+    Command:  node server.js
+    User:     sandeep
+    Parent:   bash (1235)
+    Children: 2 processes
+    Started:  2 days ago
+    CPU:      45.2% (high usage!)
+    Memory:   850 MB / 16 GB (5.3%)
+    State:    Running
+    ```
+    {{end}}
+
+    **Actions:**
+    ```
+    💡 Available actions:
+
+    View process details:
+      ps -p PID -f
+
+    Kill process:
+      kill PID
+
+    Kill process tree:
+      pkill -TERM -P {{.pid}}
+
+    Monitor process:
+      top -p PID  # Linux
+      top -pid PID  # macOS
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 3000
+
+examples:
+  - scmd /process-tree
+  - scmd /process-tree 1234
+  - scmd /process-tree "" sandeep

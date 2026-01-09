@@ -1,0 +1,161 @@
+name: git-cleanup-branches
+version: 1.0.0
+description: Delete merged branches (local and remote) with safety checks
+category: git
+author: scmd team
+license: MIT
+
+args:
+  - name: scope
+    description: Scope to clean (local, remote, both)
+    required: false
+    default: "local"
+  - name: exclude
+    description: Branches to never delete (comma-separated)
+    required: false
+    default: "main,master,develop,staging,production"
+
+hooks:
+  pre:
+    - shell: git fetch --prune
+
+prompt:
+  system: |
+    You are a Git branch management expert.
+
+    **SAFETY:**
+    - Never delete main/master/develop/production branches
+    - Only delete branches fully merged into main/master
+    - Show which branches will be deleted before proceeding
+    - Check if branches exist on remote
+    - Warn about unmerged changes
+    - Provide recovery instructions
+
+  template: |
+    Clean up {{.scope}} branches. Protected: {{.exclude}}
+
+    Step 1: Fetch and prune
+    ```bash
+    git fetch --prune
+    git remote prune origin
+    ```
+
+    Step 2: Identify current branch
+    ```bash
+    current_branch=$(git branch --show-current)
+    echo "Current branch: $current_branch"
+    ```
+
+    Step 3: Find merged branches
+    Parse protected branches: {{.exclude}}
+
+    {{if or (eq .scope "local") (eq .scope "both")}}
+    **Local merged branches:**
+    ```bash
+    git branch --merged main | \
+      grep -v "^\*" | \
+      grep -v "main" | \
+      grep -v "master" | \
+      grep -v "develop"
+    ```
+
+    Present list:
+    ```
+    Local Merged Branches (safe to delete):
+    ═══════════════════════════════════════
+    • feature/old-feature
+    • bugfix/issue-123
+    • hotfix/critical-fix
+    ...
+    Total: 8 branches
+    ```
+    {{end}}
+
+    {{if or (eq .scope "remote") (eq .scope "both")}}
+    **Remote merged branches:**
+    ```bash
+    git branch -r --merged main | \
+      grep origin | \
+      grep -v "main" | \
+      grep -v "master" | \
+      grep -v "HEAD"
+    ```
+
+    Present list:
+    ```
+    Remote Merged Branches (safe to delete):
+    ═══════════════════════════════════════
+    • origin/feature/old-feature
+    • origin/bugfix/issue-123
+    ...
+    Total: 6 branches
+    ```
+    {{end}}
+
+    Step 4: Check for unmerged branches (warning)
+    ```bash
+    git branch --no-merged main
+    ```
+
+    If found:
+    ```
+    ⚠️  Unmerged Branches (NOT safe to delete):
+    • feature/wip-new-feature (2 commits ahead)
+    • bugfix/investigating (5 commits ahead)
+
+    These will NOT be deleted.
+    ```
+
+    Step 5: Ask for confirmation
+    "Delete X local and Y remote branches? Type 'yes' to proceed."
+
+    Step 6: Delete branches
+    {{if or (eq .scope "local") (eq .scope "both")}}
+    ```bash
+    git branch --merged main | \
+      grep -v "^\*" | \
+      grep -v "main" | \
+      grep -v "master" | \
+      xargs -r git branch -d
+    ```
+    {{end}}
+
+    {{if or (eq .scope "remote") (eq .scope "both")}}
+    ```bash
+    git branch -r --merged main | \
+      grep origin | \
+      grep -v "main" | \
+      grep -v "master" | \
+      grep -v "HEAD" | \
+      sed 's/origin\///' | \
+      xargs -r -I {} git push origin --delete {}
+    ```
+    {{end}}
+
+    Step 7: Show results
+    ```
+    ✅ Cleanup Complete!
+
+    Deleted:
+    • Local: 8 branches
+    • Remote: 6 branches
+
+    Kept (unmerged): 2 branches
+    ```
+
+    Step 8: Provide recovery instructions
+    ```bash
+    # To recover a deleted branch:
+    git reflog  # Find the branch commit
+    git checkout -b branch-name COMMIT_HASH
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 3000
+
+examples:
+  - scmd /git-cleanup-branches
+  - scmd /git-cleanup-branches local
+  - scmd /git-cleanup-branches both
+  - scmd /git-cleanup-branches remote "main,master,dev"

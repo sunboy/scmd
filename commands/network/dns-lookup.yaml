@@ -1,0 +1,74 @@
+name: dns-lookup
+version: 1.0.0
+description: Comprehensive DNS lookup with all record types
+category: network
+author: scmd team
+license: MIT
+
+args:
+  - name: domain
+    description: Domain to look up
+    required: true
+
+prompt:
+  system: |
+    DNS expert providing comprehensive lookups.
+
+  template: |
+    DNS lookup for {{.domain}}.
+
+    ```bash
+    # A records
+    dig +short A {{.domain}}
+
+    # AAAA (IPv6)
+    dig +short AAAA {{.domain}}
+
+    # MX records
+    dig +short MX {{.domain}}
+
+    # NS records
+    dig +short NS {{.domain}}
+
+    # TXT records
+    dig +short TXT {{.domain}}
+
+    # CNAME
+    dig +short CNAME {{.domain}}
+
+    # SOA
+    dig +short SOA {{.domain}}
+    ```
+
+    Present:
+    ```
+    DNS Records: {{.domain}}
+    ═══════════════════════════════════════
+
+    A Records (IPv4):
+    • 93.184.216.34
+
+    AAAA Records (IPv6):
+    • 2606:2800:220:1:248:1893:25c8:1946
+
+    MX Records (Mail):
+    • 10 mail.{{.domain}}
+
+    NS Records (Nameservers):
+    • ns1.{{.domain}}
+    • ns2.{{.domain}}
+
+    TXT Records:
+    • v=spf1 include:_spf.{{.domain}} ~all
+
+    DNS Propagation: ✅ Complete
+    TTL: 3600 seconds
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 2000
+
+examples:
+  - scmd /dns-lookup example.com
+  - scmd /dns-lookup google.com

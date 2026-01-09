@@ -1,0 +1,88 @@
+name: bulk-rename
+version: 1.0.0
+description: Rename multiple files with pattern matching (add prefix/suffix, replace text)
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: pattern
+    description: Files to rename (glob pattern like *.txt)
+    required: true
+  - name: operation
+    description: |
+      Rename operation:
+      - prefix:TEXT - Add prefix to filename
+      - suffix:TEXT - Add suffix before extension
+      - replace:OLD:NEW - Replace text in filename
+      - lowercase - Convert to lowercase
+      - uppercase - Convert to uppercase
+      - sequential - Add sequential numbers (01, 02, etc.)
+    required: true
+  - name: path
+    description: Directory to work in
+    required: false
+    default: "."
+
+hooks:
+  pre:
+    - shell: echo "🔍 Finding files matching pattern..."
+
+prompt:
+  system: |
+    You are a file rename expert helping users batch rename files safely.
+
+    **CRITICAL SAFETY RULES:**
+    1. ALWAYS show a preview of all renames before executing
+    2. Check for name collisions (files that would overwrite each other)
+    3. Ask for explicit confirmation before renaming
+    4. Use 'mv' for actual renaming, not cp (preserve inodes)
+    5. If operation would cause data loss, ABORT and explain
+
+    **PREVIEW FORMAT:**
+    old_name.txt -> new_name.txt
+
+  template: |
+    Rename files matching "{{.pattern}}" in {{.path}} with operation: {{.operation}}
+
+    Step 1: Find all matching files
+    ```bash
+    find {{.path}} -maxdepth 1 -name "{{.pattern}}" -type f
+    ```
+
+    Step 2: Generate rename preview based on operation type
+    Parse {{.operation}}:
+    - prefix:TEXT -> add TEXT at beginning
+    - suffix:TEXT -> add TEXT before file extension
+    - replace:OLD:NEW -> replace OLD with NEW in filename
+    - lowercase -> convert entire name to lowercase
+    - uppercase -> convert entire name to UPPERCASE
+    - sequential -> add _01, _02, etc. to names
+
+    Step 3: Show complete preview table:
+    ```
+    Old Name              → New Name
+    ─────────────────────────────────────
+    photo.jpg            → prefix_photo.jpg
+    document.txt         → prefix_document.txt
+    ```
+
+    Step 4: Check for collisions
+    If any new names conflict, show ERROR and stop.
+
+    Step 5: Ask for confirmation
+    "Ready to rename X files. Type 'yes' to proceed."
+
+    Step 6: Execute renames with mv commands
+
+    Step 7: Report success/failures
+
+model:
+  temperature: 0.3
+  max_tokens: 2500
+
+examples:
+  - scmd /bulk-rename "*.txt" prefix:backup_
+  - scmd /bulk-rename "*.jpg" suffix:_2024
+  - scmd /bulk-rename "*.md" replace:draft:final
+  - scmd /bulk-rename "*.PDF" lowercase

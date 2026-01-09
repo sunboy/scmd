@@ -329,11 +329,16 @@ llama-server --version
 
 ### First Run
 
-On first run, scmd will automatically download the default model (Qwen3-4B, ~2.6GB):
+On first run, scmd will automatically download the default model (Qwen2.5-1.5B, ~1.0GB):
 
 ```bash
 scmd /explain "what is a goroutine"
 ```
+
+Expected download time:
+- Fast connection (50+ Mbps): 2-3 minutes
+- Medium connection (10-50 Mbps): 5-8 minutes
+- Slow connection (<10 Mbps): 10-15 minutes
 
 ## Shell Integration
 

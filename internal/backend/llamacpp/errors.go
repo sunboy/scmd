@@ -17,13 +17,14 @@ type BackendError struct {
 type ErrorType string
 
 const (
-	ErrorServerNotRunning ErrorType = "server_not_running"
-	ErrorServerNotFound   ErrorType = "server_not_found"
-	ErrorOutOfMemory      ErrorType = "out_of_memory"
-	ErrorConnectionFailed ErrorType = "connection_failed"
-	ErrorModelNotFound    ErrorType = "model_not_found"
-	ErrorTimeout          ErrorType = "timeout"
-	ErrorInference        ErrorType = "inference_failed"
+	ErrorServerNotRunning  ErrorType = "server_not_running"
+	ErrorServerNotFound    ErrorType = "server_not_found"
+	ErrorOutOfMemory       ErrorType = "out_of_memory"
+	ErrorConnectionFailed  ErrorType = "connection_failed"
+	ErrorModelNotFound     ErrorType = "model_not_found"
+	ErrorTimeout           ErrorType = "timeout"
+	ErrorInference         ErrorType = "inference_failed"
+	ErrorContextSizeExceeded ErrorType = "context_size_exceeded"
 )
 
 // Error implements the error interface
@@ -160,6 +161,40 @@ func NewInferenceError(cause error) *BackendError {
 	}
 }
 
+// NewContextSizeExceededError creates an error when input exceeds context size
+// Provides intelligent hints for GPU memory limitations (Metal)
+func NewContextSizeExceededError(cause error, requestedTokens, availableTokens int) *BackendError {
+	suggestions := []string{
+		fmt.Sprintf("Reduce input size (current: %d tokens, limit: %d tokens)", requestedTokens, availableTokens),
+	}
+
+	// Detect Metal GPU memory limitation (server started with large context but reporting smaller)
+	// This happens when Metal cannot allocate enough VRAM for the KV cache
+	if availableTokens < 8192 {
+		suggestions = append(suggestions,
+			"💡 GPU memory limitation detected - use CPU-only mode for larger contexts:",
+			"   export SCMD_CPU_ONLY=1 && pkill -9 llama-server",
+			"   Then retry your command (will be slower but support full context)",
+		)
+	} else {
+		suggestions = append(suggestions,
+			fmt.Sprintf("Use --context-size flag: scmd --context-size %d /explain", availableTokens),
+		)
+	}
+
+	suggestions = append(suggestions,
+		"Split large files into smaller chunks",
+		"Use cloud backend for large inputs: scmd -b openai /explain",
+	)
+
+	return &BackendError{
+		Type:    ErrorContextSizeExceeded,
+		Message: "Input exceeds available context size",
+		Cause:   cause,
+		Suggestions: suggestions,
+	}
+}
+
 // ParseError detects error types from error messages and creates appropriate errors
 func ParseError(err error) error {
 	if err == nil {
@@ -167,6 +202,40 @@ func ParseError(err error) error {
 	}
 
 	errStr := strings.ToLower(err.Error())
+
+	// Check for context size exceeded error first (most specific)
+	if strings.Contains(errStr, "exceed_context_size_error") ||
+	   strings.Contains(errStr, "exceeds the available context size") {
+		// Try to extract token counts from error message
+		// Format: "request (5502 tokens) exceeds the available context size (4096 tokens)"
+		var requestedTokens, availableTokens int = 0, 0
+
+		// Extract requested tokens: look for "(NNNN tokens)" pattern
+		if idx := strings.Index(errStr, "request ("); idx != -1 {
+			substr := errStr[idx+9:] // Skip "request ("
+			if endIdx := strings.Index(substr, " tokens)"); endIdx != -1 {
+				fmt.Sscanf(substr[:endIdx], "%d", &requestedTokens)
+			}
+		}
+
+		// Extract available tokens: look for "context size (NNNN tokens)" pattern
+		if idx := strings.Index(errStr, "context size ("); idx != -1 {
+			substr := errStr[idx+14:] // Skip "context size ("
+			if endIdx := strings.Index(substr, " tokens)"); endIdx != -1 {
+				fmt.Sscanf(substr[:endIdx], "%d", &availableTokens)
+			}
+		}
+
+		// Alternative pattern: "n_prompt_tokens":5502,"n_ctx":4096
+		if requestedTokens == 0 && strings.Contains(errStr, "n_prompt_tokens") {
+			fmt.Sscanf(errStr[strings.Index(errStr, "n_prompt_tokens")+16:], "%d", &requestedTokens)
+		}
+		if availableTokens == 0 && strings.Contains(errStr, "n_ctx") {
+			fmt.Sscanf(errStr[strings.Index(errStr, "n_ctx")+6:], "%d", &availableTokens)
+		}
+
+		return NewContextSizeExceededError(err, requestedTokens, availableTokens)
+	}
 
 	// Check for specific error patterns
 	if strings.Contains(errStr, "connection refused") || strings.Contains(errStr, "eof") {

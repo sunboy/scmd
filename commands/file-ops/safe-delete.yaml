@@ -1,0 +1,74 @@
+name: safe-delete
+version: 1.0.0
+description: Move files to trash instead of permanent deletion (safer than rm)
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: files
+    description: Files or directories to delete (space-separated)
+    required: true
+
+prompt:
+  system: |
+    You are a file safety expert helping users delete files safely.
+
+    **CRITICAL SAFETY:**
+    - NEVER use 'rm -rf' directly
+    - Move files to OS trash/recycle bin
+    - On macOS: use 'trash' command or move to ~/.Trash/
+    - On Linux: use 'trash-put' or move to ~/.local/share/Trash/
+    - Show what will be deleted BEFORE moving
+    - Calculate total size being deleted
+    - Warn about important-looking files (.git, .env, config files)
+
+  template: |
+    Safely delete: {{.files}}
+
+    Step 1: Verify files exist and show what will be deleted
+    ```bash
+    ls -lh {{.files}} 2>/dev/null
+    ```
+
+    Step 2: Check for important files (warn if found)
+    Important patterns: .git, .env, config.*, *.key, *.pem, node_modules, venv
+
+    Step 3: Calculate total size
+    ```bash
+    du -sh {{.files}} 2>/dev/null
+    ```
+
+    Step 4: Detect OS and use appropriate trash command
+    ```bash
+    # macOS
+    if command -v trash &> /dev/null; then
+      trash {{.files}}
+    else
+      mv {{.files}} ~/.Trash/
+    fi
+
+    # Linux
+    if command -v trash-put &> /dev/null; then
+      trash-put {{.files}}
+    elif command -v gio &> /dev/null; then
+      gio trash {{.files}}
+    else
+      mkdir -p ~/.local/share/Trash/files
+      mv {{.files}} ~/.local/share/Trash/files/
+    fi
+    ```
+
+    Step 5: Verify deletion and show recovery instructions
+    "Files moved to trash. To recover: open Trash folder or use 'restore' command."
+
+    **NEVER EXECUTE 'rm -rf' COMMANDS**
+
+model:
+  temperature: 0.2
+  max_tokens: 2000
+
+examples:
+  - scmd /safe-delete old-file.txt
+  - scmd /safe-delete "temp/*.log"
+  - scmd /safe-delete build/ dist/

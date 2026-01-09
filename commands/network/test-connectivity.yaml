@@ -1,0 +1,70 @@
+name: test-connectivity
+version: 1.0.0
+description: Test network connectivity (ping, traceroute, DNS)
+category: network
+author: scmd team
+license: MIT
+
+args:
+  - name: target
+    description: Target host to test
+    required: false
+    default: "8.8.8.8"
+
+prompt:
+  system: |
+    Network connectivity troubleshooting expert.
+
+  template: |
+    Test connectivity to {{.target}}.
+
+    **1. Ping test:**
+    ```bash
+    ping -c 5 {{.target}}
+    ```
+
+    **2. Traceroute:**
+    ```bash
+    traceroute {{.target}} || tracert {{.target}}
+    ```
+
+    **3. DNS resolution:**
+    ```bash
+    nslookup {{.target}}
+    dig {{.target}}
+    ```
+
+    **4. Port connectivity:**
+    ```bash
+    nc -zv {{.target}} 80 2>&1
+    nc -zv {{.target}} 443 2>&1
+    ```
+
+    Present:
+    ```
+    Connectivity Test: {{.target}}
+    ═══════════════════════════════════════
+
+    Ping: ✅ Success
+    • 5 packets sent, 5 received (0% loss)
+    • RTT: min 12ms, avg 15ms, max 18ms
+
+    Traceroute: ✅ Reachable
+    • 8 hops
+    • Total time: 25ms
+
+    DNS: ✅ Resolves
+    • IP: 8.8.8.8
+
+    Ports:
+    • 80 (HTTP): ✅ Open
+    • 443 (HTTPS): ✅ Open
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 2000
+
+examples:
+  - scmd /test-connectivity google.com
+  - scmd /test-connectivity 8.8.8.8

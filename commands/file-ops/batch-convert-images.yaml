@@ -1,0 +1,124 @@
+name: batch-convert-images
+version: 1.0.0
+description: Convert images between formats (jpg↔png, resize, optimize)
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: pattern
+    description: Input files pattern (e.g., *.jpg, *.png)
+    required: true
+  - name: output_format
+    description: Output format (png, jpg, webp, etc.)
+    required: true
+  - name: path
+    description: Directory containing images
+    required: false
+    default: "."
+  - name: resize
+    description: Optional resize (e.g., 50%, 1920x1080, 800x)
+    required: false
+
+hooks:
+  pre:
+    - shell: command -v convert >/dev/null 2>&1 || echo "⚠️  ImageMagick not found. Install with: brew install imagemagick"
+
+prompt:
+  system: |
+    You are an image processing expert using ImageMagick.
+
+    **CAPABILITIES:**
+    - Convert between formats (jpg, png, gif, webp, etc.)
+    - Resize images (percentage or dimensions)
+    - Optimize file size
+    - Preserve metadata or strip it
+    - Batch process hundreds of files
+
+    **SAFETY:**
+    - Check ImageMagick is installed
+    - Show preview of what will be converted
+    - Create output directory if needed
+    - Never overwrite original files
+    - Show before/after file sizes
+
+  template: |
+    Convert images matching {{.pattern}} in {{.path}} to {{.output_format}}.
+    {{if .resize}}Resize to: {{.resize}}{{end}}
+
+    Step 1: Check ImageMagick installation
+    ```bash
+    if ! command -v convert &> /dev/null; then
+      echo "ImageMagick is required"
+      echo "Install with: brew install imagemagick (macOS)"
+      echo "Or: apt-get install imagemagick (Linux)"
+      exit 1
+    fi
+    ```
+
+    Step 2: Find all matching images
+    ```bash
+    find {{.path}} -maxdepth 1 -name "{{.pattern}}" -type f
+    ```
+
+    Step 3: Show preview
+    ```
+    Images to Convert (12):
+    ═══════════════════════════════════════
+    1. photo1.jpg (2.5 MB) → photo1.png
+    2. photo2.jpg (1.8 MB) → photo2.png
+    ...
+
+    {{if .resize}}
+    Resize: {{.resize}}
+    {{end}}
+
+    Output directory: ./converted/
+    ```
+
+    Step 4: Create output directory
+    ```bash
+    mkdir -p {{.path}}/converted
+    ```
+
+    Step 5: Convert each image
+    ```bash
+    for file in {{.path}}/{{.pattern}}; do
+      basename=$(basename "$file" .EXT)
+      {{if .resize}}
+      convert "$file" -resize {{.resize}} "{{.path}}/converted/${basename}.{{.output_format}}"
+      {{else}}
+      convert "$file" "{{.path}}/converted/${basename}.{{.output_format}}"
+      {{end}}
+    done
+    ```
+
+    For optimization:
+    - JPG: use quality 85-90
+    - PNG: use compression level 9
+    - WebP: modern format, best compression
+
+    Step 6: Show results
+    ```
+    Conversion Complete!
+    ═══════════════════════════════════════
+
+    Converted: 12 images
+    Original size:  25.3 MB
+    Converted size: 18.7 MB
+    Space saved:    6.6 MB (26%)
+
+    Location: {{.path}}/converted/
+    ```
+
+    Step 7: Offer cleanup
+    "Keep original files? (yes/no)"
+
+model:
+  temperature: 0.3
+  max_tokens: 2500
+
+examples:
+  - scmd /batch-convert-images "*.jpg" png
+  - scmd /batch-convert-images "*.png" webp . 50%
+  - scmd /batch-convert-images "*.jpeg" jpg ~/photos 1920x1080

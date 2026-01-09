@@ -211,8 +211,8 @@ var DestructiveCommands = []DestructivePattern{
 
 // DetectResult contains information about a detected destructive command
 type DetectResult struct {
-	IsDestructive bool
-	Matches       []Match
+	IsDestructive   bool
+	Matches         []Match
 	HighestSeverity Severity
 }
 
@@ -226,7 +226,7 @@ type Match struct {
 // Detect analyzes a command for destructive patterns
 func Detect(command string) *DetectResult {
 	result := &DetectResult{
-		Matches: make([]Match, 0),
+		Matches:         make([]Match, 0),
 		HighestSeverity: SeverityLow,
 	}
 

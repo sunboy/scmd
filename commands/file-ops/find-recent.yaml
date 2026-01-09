@@ -1,0 +1,60 @@
+name: find-recent
+version: 1.0.0
+description: Find recently modified files in the last N hours or days
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: time
+    description: Time period (e.g., 1h, 24h, 7d)
+    required: false
+    default: "24h"
+  - name: path
+    description: Path to search in
+    required: false
+    default: "."
+
+prompt:
+  system: |
+    You are a helpful file system assistant.
+    Help users find recently modified files efficiently.
+
+    **REQUIREMENTS:**
+    - Parse time strings: h=hours, d=days, m=minutes
+    - Use 'find -mtime' or '-mmin' appropriately
+    - Sort by modification time (newest first)
+    - Show modification timestamp with each file
+    - Filter out hidden files by default unless requested
+
+  template: |
+    Find all files modified in the last {{.time}} in {{.path}}.
+
+    Parse the time parameter:
+    - If contains 'h': use hours with find -mmin
+    - If contains 'd': use days with find -mtime
+    - If contains 'm': use minutes with find -mmin
+
+    Use the shell tool to execute appropriate find command:
+    ```bash
+    # Example for hours:
+    find {{.path}} -type f -mmin -$((HOURS*60)) -ls 2>/dev/null | \
+      awk '{print $8" "$9" "$11}' | \
+      sort -r | \
+      head -30
+    ```
+
+    Present results showing:
+    1. Modification date/time
+    2. File path
+
+    Group by directory if helpful and provide summary statistics.
+
+model:
+  temperature: 0.3
+  max_tokens: 2000
+
+examples:
+  - scmd /find-recent
+  - scmd /find-recent 1h
+  - scmd /find-recent 7d ~/projects

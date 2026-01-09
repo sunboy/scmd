@@ -244,8 +244,8 @@ This allows users to:
 ├── config.yaml              # User configuration
 ├── scmd.lock               # Lockfile for reproducibility
 ├── models/                 # Downloaded LLM models
-│   ├── qwen3-4b.gguf
-│   └── qwen2.5-3b.gguf
+│   ├── qwen2.5-1.5b-q4_k_m.gguf
+│   └── qwen2.5-3b-q4_k_m.gguf
 ├── commands/               # Installed commands
 │   ├── official/
 │   │   ├── review.yaml

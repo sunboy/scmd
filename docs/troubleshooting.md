@@ -161,7 +161,7 @@ Models download automatically on first use, but you can also download manually:
 scmd models list
 
 # Download specific model
-scmd models download qwen3-4b
+scmd models download qwen2.5-1.5b
 
 # Check downloaded models
 scmd doctor
@@ -398,7 +398,7 @@ A: CPU inference is inherently slow (30-60s per query). Use GPU mode or cloud ba
 
 A: Models range from 400MB to 5GB:
 - qwen2.5-0.5b: ~400MB
-- qwen2.5-1.5b: ~1GB
+- qwen2.5-1.5b: ~1GB (default)
 - qwen2.5-3b: ~2GB
 - qwen3-4b: ~2.6GB
 - qwen2.5-7b: ~4.7GB
@@ -408,7 +408,7 @@ A: Models range from 400MB to 5GB:
 A: Yes! Download multiple models and switch between them:
 ```bash
 scmd server start -m qwen2.5-3b
-scmd server restart -m qwen3-4b
+scmd server restart -m qwen2.5-1.5b
 ```
 
 **Q: Is my data sent to the cloud?**

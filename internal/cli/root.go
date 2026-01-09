@@ -22,15 +22,16 @@ import (
 )
 
 var (
-	cfg          *config.Config
-	verbose      bool
-	promptFlag   string
-	outputFlag   string
-	formatFlag   string
-	quietFlag    bool
-	contextFlags []string
-	backendFlag  string
-	modelFlag    string
+	cfg             *config.Config
+	verbose         bool
+	promptFlag      string
+	outputFlag      string
+	formatFlag      string
+	quietFlag       bool
+	contextFlags    []string
+	backendFlag     string
+	modelFlag       string
+	contextSizeFlag int
 
 	// Global registries
 	cmdRegistry     *command.Registry
@@ -69,6 +70,7 @@ func init() {
 	// Backend flags
 	rootCmd.PersistentFlags().StringVarP(&backendFlag, "backend", "b", "", "backend to use: ollama, openai, together, groq")
 	rootCmd.PersistentFlags().StringVarP(&modelFlag, "model", "m", "", "model to use (overrides default)")
+	rootCmd.PersistentFlags().IntVar(&contextSizeFlag, "context-size", 0, "max context size (0 = use model's native max)")
 
 	// Pipe/prompt flags
 	rootCmd.PersistentFlags().StringVarP(&promptFlag, "prompt", "p", "", "inline prompt")
@@ -94,6 +96,7 @@ func init() {
 	rootCmd.AddCommand(slashCmd)
 	rootCmd.AddCommand(modelsCmd)
 	rootCmd.AddCommand(completionCmd)
+	rootCmd.AddCommand(SetupCommand())
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
@@ -314,8 +317,42 @@ func runBuiltinCommand(name string, args []string) error {
 	return nil
 }
 
-func preRun(_ *cobra.Command, _ []string) error {
+func preRun(cmd *cobra.Command, _ []string) error {
 	var err error
+
+	// Skip first-run check for certain commands
+	skipCommands := map[string]bool{
+		"help":       true,
+		"version":    true,
+		"setup":      true,
+		"completion": true,
+	}
+
+	cmdName := cmd.Name()
+	if !skipCommands[cmdName] && IsFirstRun() {
+		// Check if running in interactive mode
+		mode := DetectIOMode()
+		if mode.Interactive {
+			if err := RunSetupIfNeeded(); err != nil {
+				return fmt.Errorf("setup failed: %w", err)
+			}
+		}
+	}
+
+	// Validate format flag if provided
+	if formatFlag != "" {
+		validFormats := []string{"text", "json", "markdown"}
+		valid := false
+		for _, f := range validFormats {
+			if formatFlag == f {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return fmt.Errorf("invalid format '%s': must be one of: text, json, markdown", formatFlag)
+		}
+	}
 
 	// Load configuration
 	cfg, err = config.Load()
@@ -332,6 +369,17 @@ func preRun(_ *cobra.Command, _ []string) error {
 
 	// 1. llama.cpp (local, built-in, no setup required)
 	llamaBackend := llamacpp.New(dataDir)
+
+	// Apply context size from config or CLI flag
+	// Priority: CLI flag > config > model's native size
+	contextSize := cfg.Backends.Local.ContextLength // From config
+	if contextSizeFlag > 0 {
+		contextSize = contextSizeFlag // CLI flag overrides config
+	}
+	if contextSize > 0 {
+		llamaBackend.SetContextSize(contextSize)
+	}
+
 	_ = backendRegistry.Register(llamaBackend)
 
 	// 2. Ollama (local, if installed)

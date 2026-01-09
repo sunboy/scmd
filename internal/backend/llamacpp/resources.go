@@ -11,10 +11,10 @@ import (
 
 // SystemResources holds information about system resources
 type SystemResources struct {
-	TotalRAMBytes int64
+	TotalRAMBytes     int64
 	AvailableRAMBytes int64
-	HasGPU bool
-	GPUType string
+	HasGPU            bool
+	GPUType           string
 }
 
 // DetectSystemResources detects available system resources
@@ -105,9 +105,12 @@ func detectGPU() (bool, string) {
 }
 
 // CalculateOptimalConfig calculates optimal server configuration based on resources
+// Note: This function NO LONGER sets ContextSize - that's handled by the backend
+// based on model metadata. This only calculates GPU layers.
 func CalculateOptimalConfig(res *SystemResources, modelSizeBytes int64) *ServerConfig {
 	config := &ServerConfig{
 		Port: 8089,
+		// ContextSize is NOT set here - it's set by the backend from model metadata
 	}
 
 	debug := os.Getenv("SCMD_DEBUG") != ""
@@ -122,36 +125,18 @@ func CalculateOptimalConfig(res *SystemResources, modelSizeBytes int64) *ServerC
 		fmt.Fprintf(os.Stderr, "[DEBUG] Model size: %.1f GB\n", float64(modelSizeBytes)/1024/1024/1024)
 	}
 
-	// Calculate context size
-	// Each token uses approximately 4 bytes
-	// Formula: available_memory = model_size + (context_size * 4 * num_layers)
-	// Simplified: available_memory = model_size + (context_size * 16) for typical models
-
 	memoryAfterModel := availableForModel - modelSizeBytes
 	if memoryAfterModel < 0 {
-		// Model too large for available RAM - use minimum context
-		config.ContextSize = 512
+		// Model too large for available RAM - use CPU-only mode
 		config.GPULayers = 0 // Force CPU mode
 		if debug {
-			fmt.Fprintf(os.Stderr, "[DEBUG] Model too large, using minimal config\n")
+			fmt.Fprintf(os.Stderr, "[DEBUG] Model too large for RAM, using CPU-only mode\n")
 		}
 		return config
 	}
 
-	// Calculate safe context size
-	// Reserve some memory for context processing
-	contextMemoryBytes := memoryAfterModel / 2 // Use half of remaining memory
-	estimatedContextSize := int(contextMemoryBytes / 16) // ~16 bytes per token with overhead
-
-	// Clamp to reasonable values
-	if estimatedContextSize < 512 {
-		config.ContextSize = 512
-	} else if estimatedContextSize > 8192 {
-		config.ContextSize = 8192
-	} else {
-		// Round down to nearest power of 2 for efficiency
-		config.ContextSize = roundDownToPowerOf2(estimatedContextSize)
-	}
+	// Context size is NO LONGER calculated here - removed all artificial limits
+	// The backend will use the model's native context size from metadata
 
 	// Determine GPU usage
 	if res.HasGPU {

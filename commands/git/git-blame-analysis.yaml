@@ -1,0 +1,187 @@
+name: git-blame-analysis
+version: 1.0.0
+description: Analyze git blame with context, commit history, and author stats
+category: git
+author: scmd team
+license: MIT
+
+args:
+  - name: file
+    description: File to analyze
+    required: true
+  - name: line_range
+    description: Line range to focus on (e.g., 10-50)
+    required: false
+
+prompt:
+  system: |
+    You are a Git blame analysis expert helping users understand code history.
+
+    **BLAME FEATURES:**
+    - Show who last modified each line
+    - When it was modified
+    - Which commit made the change
+    - Why (commit message)
+
+    **ANALYSIS INCLUDES:**
+    - Author statistics
+    - Commit frequency for the file
+    - Recent changes timeline
+    - Code ownership breakdown
+
+  template: |
+    Analyze git blame for {{.file}}{{if .line_range}} (lines {{.line_range}}){{end}}.
+
+    Step 1: Verify file exists
+    ```bash
+    git ls-files --error-unmatch {{.file}}
+    ```
+
+    Step 2: Run git blame
+    {{if .line_range}}
+    ```bash
+    git blame -L {{.line_range}} {{.file}} --date=short
+    ```
+    {{else}}
+    ```bash
+    git blame {{.file}} --date=short
+    ```
+    {{end}}
+
+    Present blame with context:
+    ```
+    Git Blame: {{.file}}
+    ═══════════════════════════════════════
+
+    Line | Commit  | Author    | Date       | Code
+    ─────┼─────────┼───────────┼────────────┼──────────────
+       1 | a1b2c3d | John Doe  | 2024-01-15 | package main
+       2 | a1b2c3d | John Doe  | 2024-01-15 |
+       3 | d4e5f6g | Jane S.   | 2024-02-20 | import (
+       4 | d4e5f6g | Jane S.   | 2024-02-20 |   "fmt"
+       5 | g7h8i9j | Bob T.    | 2024-03-10 |   "os"
+       ...
+    ```
+
+    Step 3: Author statistics
+    ```bash
+    git blame {{.file}} --line-porcelain | \
+      grep "^author " | \
+      sort | uniq -c | sort -rn
+    ```
+
+    Present:
+    ```
+    Author Contributions:
+    ═══════════════════════════════════════
+    1. Jane Smith     245 lines (52%)
+    2. John Doe       142 lines (30%)
+    3. Bob Thompson    85 lines (18%)
+
+    Total: 472 lines
+    ```
+
+    Step 4: Recent commit timeline for file
+    ```bash
+    git log --follow --oneline -10 {{.file}}
+    ```
+
+    Present:
+    ```
+    Recent Changes:
+    ═══════════════════════════════════════
+    g7h8i9j - Bob Thompson, 2 days ago
+       Add error handling for edge cases
+
+    d4e5f6g - Jane Smith, 1 week ago
+       Refactor main logic for clarity
+
+    a1b2c3d - John Doe, 2 months ago
+       Initial implementation
+
+    Total commits for this file: 47
+    ```
+
+    Step 5: Find frequent contributors
+    ```bash
+    git log --follow --format="%an" {{.file}} | \
+      sort | uniq -c | sort -rn | head -5
+    ```
+
+    Step 6: Analyze specific commits (if line_range specified)
+    {{if .line_range}}
+    For the specified lines, show relevant commits:
+    ```bash
+    git log -L {{.line_range}}:{{.file}} --oneline
+    ```
+
+    Present:
+    ```
+    History of Lines {{.line_range}}:
+    ═══════════════════════════════════════
+
+    g7h8i9j - Bob Thompson, 2 days ago
+       Add error handling for edge cases
+       [show diff for these lines]
+
+    d4e5f6g - Jane Smith, 1 week ago
+       Refactor main logic for clarity
+       [show diff for these lines]
+    ```
+    {{end}}
+
+    Step 7: Show ownership by percentage
+    Create pie chart representation:
+    ```
+    Code Ownership:
+    ═══════════════════════════════════════
+    Jane Smith    ████████████████░░░░  52%
+    John Doe      ████████░░░░░░░░░░░░  30%
+    Bob Thompson  ████░░░░░░░░░░░░░░░░  18%
+    ```
+
+    Step 8: Provide detailed commit info
+    For most recent changes:
+    ```bash
+    git show --stat COMMIT_HASH
+    ```
+
+    Additional analysis options:
+    ```
+    💡 Advanced Blame Analysis:
+
+    1. Ignore whitespace changes:
+       git blame -w {{.file}}
+
+    2. Ignore moves/copies:
+       git blame -M -C {{.file}}
+
+    3. Show email addresses:
+       git blame -e {{.file}}
+
+    4. Show full commit hash:
+       git blame --abbrev=40 {{.file}}
+
+    5. Follow file renames:
+       git blame --follow {{.file}}
+
+    6. View specific commit:
+       git show COMMIT_HASH
+    ```
+
+    Useful follow-up questions:
+    ```
+    • Who introduced this bug? (use line numbers from error)
+    • When was this feature added?
+    • Why was this code changed?
+    • Who owns this part of the codebase?
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 3500
+
+examples:
+  - scmd /git-blame-analysis src/main.go
+  - scmd /git-blame-analysis lib/auth.js 45-100
+  - scmd /git-blame-analysis README.md

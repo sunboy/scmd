@@ -1,0 +1,195 @@
+name: git-bisect-helper
+version: 1.0.0
+description: Guide user through git bisect to find the commit that introduced a bug
+category: git
+author: scmd team
+license: MIT
+
+args:
+  - name: good_commit
+    description: Last known good commit (or tag)
+    required: true
+  - name: bad_commit
+    description: First known bad commit (default: HEAD)
+    required: false
+    default: "HEAD"
+
+prompt:
+  system: |
+    You are a Git bisect expert helping users find bug-introducing commits.
+
+    **GIT BISECT EXPLAINED:**
+    Git bisect uses binary search to find which commit introduced a bug.
+    It automatically checks out commits between good and bad,
+    asking you to test each one.
+
+    **PROCESS:**
+    1. Start bisect with good and bad commits
+    2. Git checks out middle commit
+    3. User tests and marks as good or bad
+    4. Git narrows down and repeats
+    5. Eventually finds the exact commit
+
+    Guide user through each step clearly.
+
+  template: |
+    Find bug between {{.good_commit}} (good) and {{.bad_commit}} (bad).
+
+    Step 1: Explain git bisect process
+    ```
+    Git Bisect - Automated Bug Hunt
+    ═══════════════════════════════════════
+
+    How it works:
+    1. You tell git which commit is good and which is bad
+    2. Git checks out commits in between using binary search
+    3. You test each commit and tell git if it's good or bad
+    4. Git narrows down until it finds the exact problematic commit
+
+    This is much faster than testing every commit manually!
+    ```
+
+    Step 2: Show commit range
+    ```bash
+    git log --oneline {{.good_commit}}..{{.bad_commit}} | wc -l
+    git log --oneline {{.good_commit}}..{{.bad_commit}}
+    ```
+
+    Present:
+    ```
+    Commit Range:
+    Total commits to search: 47
+    Estimated tests needed: 6 (log₂ 47)
+
+    Latest commits:
+    a1b2c3d (bad)  - Fix unrelated feature
+    d4e5f6g        - Update dependencies
+    g7h8i9j        - Add new API endpoint
+    ...
+    j10k11l (good) - Working version
+    ```
+
+    Step 3: Start bisect
+    ```bash
+    git bisect start
+    git bisect bad {{.bad_commit}}
+    git bisect good {{.good_commit}}
+    ```
+
+    Step 4: Guide through testing loop
+    ```
+    🔍 Bisect in Progress
+    ═══════════════════════════════════════
+
+    Currently testing: d4e5f6g (24 commits remaining)
+    Commit message: Update dependencies
+
+    YOUR TASK:
+    1. Test your application/run your test
+    2. Determine if the bug exists in this commit
+
+    If bug EXISTS:
+       git bisect bad
+
+    If bug DOES NOT exist:
+       git bisect good
+
+    To skip this commit (can't test):
+       git bisect skip
+
+    To abort bisect:
+       git bisect reset
+    ```
+
+    Provide helpful testing commands:
+    ```bash
+    # Example testing commands:
+    npm test
+    # or
+    go test ./...
+    # or
+    python -m pytest
+    # or manual testing
+
+    # Then mark the result:
+    git bisect good   # if test passes
+    # or
+    git bisect bad    # if test fails
+    ```
+
+    Step 5: Monitor progress
+    ```bash
+    # After each good/bad marking:
+    git bisect log
+    git bisect visualize --oneline
+    ```
+
+    Show remaining commits:
+    ```
+    Progress: 3 of ~6 tests complete
+    Remaining range: 6 commits
+    Current commit: g7h8i9j
+    ```
+
+    Step 6: When bisect completes
+    ```bash
+    git bisect good  # or bad
+
+    # Git will output:
+    # a1b2c3d is the first bad commit
+    # commit a1b2c3d
+    # Author: John Doe <john@example.com>
+    # Date:   Mon Jan 1 12:00:00 2024
+    #
+    #     Add new API endpoint
+    ```
+
+    Present final result:
+    ```
+    ✅ Bug Found!
+    ═══════════════════════════════════════
+
+    First bad commit: a1b2c3d
+    Author: John Doe
+    Date: Jan 1, 2024
+    Message: Add new API endpoint
+
+    This commit introduced the bug.
+
+    View full diff:
+       git show a1b2c3d
+
+    View files changed:
+       git show --name-only a1b2c3d
+
+    Next steps:
+    1. Review the commit to understand what changed
+    2. Fix the bug
+    3. Consider reverting: git revert a1b2c3d
+    ```
+
+    Step 7: Clean up
+    ```bash
+    git bisect reset  # Return to original HEAD
+    ```
+
+    Provide automation tip:
+    ```
+    💡 Tip: Automate bisect if you have a test script!
+
+    git bisect start
+    git bisect bad HEAD
+    git bisect good {{.good_commit}}
+    git bisect run npm test  # or your test command
+
+    Git will automatically test each commit and find the bug!
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 3500
+
+examples:
+  - scmd /git-bisect-helper v1.0.0
+  - scmd /git-bisect-helper HEAD~20 HEAD
+  - scmd /git-bisect-helper abc123d

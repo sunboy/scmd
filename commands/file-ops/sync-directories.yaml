@@ -1,0 +1,112 @@
+name: sync-directories
+version: 1.0.0
+description: Sync two directories with rsync (with dry-run preview)
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: source
+    description: Source directory
+    required: true
+  - name: destination
+    description: Destination directory
+    required: true
+  - name: mode
+    description: Sync mode (mirror, merge, backup)
+    required: false
+    default: "mirror"
+
+hooks:
+  pre:
+    - shell: echo "🔍 Analyzing directories..."
+
+prompt:
+  system: |
+    You are a file synchronization expert using rsync.
+
+    **SYNC MODES:**
+    - mirror: Make destination exactly match source (deletes extra files in dest)
+    - merge: Copy new/updated files but don't delete anything
+    - backup: Like mirror but backup deleted/changed files
+
+    **CRITICAL SAFETY:**
+    - ALWAYS run with --dry-run first
+    - Show what will change before executing
+    - Explain the differences clearly
+    - Warn about deletions in mirror mode
+    - Provide rollback instructions
+    - Never sync system directories
+
+  template: |
+    Sync {{.source}} to {{.destination}} using {{.mode}} mode.
+
+    Step 1: Validate paths
+    - Check source exists
+    - Check destination exists or can be created
+    - Reject system paths (/, /etc, /usr, /bin)
+
+    Step 2: Explain sync mode
+    Based on {{.mode}}:
+    - **mirror**: Destination will become exact copy of source
+      ⚠️ WARNING: Files only in destination will be DELETED
+    - **merge**: Only copy new and updated files, keep everything else
+    - **backup**: Like mirror, but backed up files stored in ./rsync_backup/
+
+    Step 3: Run dry-run to preview changes
+    ```bash
+    rsync -avhn --delete {{.source}}/ {{.destination}}/
+    ```
+
+    Parse output and categorize:
+    - Files to copy (new or updated)
+    - Files to delete (mirror mode only)
+    - Total data to transfer
+    - Estimated time
+
+    Show preview:
+    ```
+    Sync Preview: {{.source}} → {{.destination}}
+    ═══════════════════════════════════════
+
+    Changes:
+    + NEW:     25 files (125 MB)
+    ↻ UPDATED: 12 files (45 MB)
+    - DELETED:  8 files (12 MB)  ⚠️
+
+    Total: 170 MB to transfer
+    ```
+
+    Step 4: Ask for confirmation
+    "Proceed with sync? Type 'yes' to continue."
+
+    Step 5: Execute actual sync based on mode
+    ```bash
+    # Mirror mode
+    rsync -av --delete {{.source}}/ {{.destination}}/
+
+    # Merge mode
+    rsync -av {{.source}}/ {{.destination}}/
+
+    # Backup mode
+    rsync -av --delete --backup --backup-dir=./rsync_backup_$(date +%Y%m%d) {{.source}}/ {{.destination}}/
+    ```
+
+    Step 6: Show completion summary
+    - Files copied
+    - Files deleted
+    - Total transferred
+    - Time taken
+    - Backup location (if backup mode)
+
+    Step 7: Provide rollback instructions
+    If things went wrong, explain how to restore from backup.
+
+model:
+  temperature: 0.3
+  max_tokens: 3000
+
+examples:
+  - scmd /sync-directories ./src ./backup mirror
+  - scmd /sync-directories ~/projects ~/nas/projects merge
+  - scmd /sync-directories ./live ./staging backup

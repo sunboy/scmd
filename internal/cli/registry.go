@@ -86,8 +86,8 @@ var registrySearchCmd = &cobra.Command{
 
 // registryFeaturedCmd shows featured/trending commands
 var registryFeaturedCmd = &cobra.Command{
-	Use:   "featured",
-	Short: "Show featured and trending commands",
+	Use:     "featured",
+	Short:   "Show featured and trending commands",
 	Aliases: []string{"trending", "popular"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
@@ -122,8 +122,8 @@ var registryFeaturedCmd = &cobra.Command{
 
 // registryCategoriesCmd lists available categories
 var registryCategoriesCmd = &cobra.Command{
-	Use:   "categories",
-	Short: "List available command categories",
+	Use:     "categories",
+	Short:   "List available command categories",
 	Aliases: []string{"cats"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
@@ -305,6 +305,7 @@ var lockInstallCmd = &cobra.Command{
 	Short: "Install commands from a lockfile",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		input := "scmd.lock"
 		if len(args) > 0 {
 			input = args[0]
@@ -325,7 +326,7 @@ var lockInstallCmd = &cobra.Command{
 		dataDir := getDataDir()
 		installDir := filepath.Join(dataDir, "commands")
 
-		if err := mgr.InstallFromLockfile(lf, installDir); err != nil {
+		if err := mgr.InstallFromLockfile(ctx, lf, installDir); err != nil {
 			return fmt.Errorf("install: %w", err)
 		}
 

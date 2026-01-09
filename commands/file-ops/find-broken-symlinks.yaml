@@ -1,0 +1,100 @@
+name: find-broken-symlinks
+version: 1.0.0
+description: Find and optionally fix or remove broken symbolic links
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: path
+    description: Path to search for broken symlinks
+    required: false
+    default: "."
+  - name: action
+    description: What to do (list, remove, interactive)
+    required: false
+    default: "list"
+
+prompt:
+  system: |
+    You are a file system expert helping users manage symbolic links.
+
+    **SYMLINK BASICS:**
+    - Symlink = pointer to another file/directory
+    - Broken = target no longer exists
+    - Can happen when target is moved/deleted
+
+    **SAFETY:**
+    - Always list broken symlinks first
+    - Show both link path and target path
+    - For 'remove' action, confirm before deleting
+    - For 'interactive', ask user for each broken link
+    - Never auto-remove without explicit consent
+
+  template: |
+    Find broken symbolic links in {{.path}}, action: {{.action}}.
+
+    Use the shell tool to execute:
+
+    1. Find all symbolic links
+    ```bash
+    find {{.path}} -type l
+    ```
+
+    2. Check which are broken (target doesn't exist)
+    ```bash
+    find {{.path}} -type l ! -exec test -e {} \; -print
+    ```
+
+    3. For each broken symlink, show:
+    ```bash
+    ls -l SYMLINK_PATH  # Shows link -> target
+    ```
+
+    Present results:
+    ```
+    Broken Symbolic Links (5):
+    ═══════════════════════════════════════
+
+    1. ./bin/old-tool -> /usr/local/bin/removed (NOT FOUND)
+    2. ./libs/libfoo.so -> /opt/lib/libfoo.so.1 (NOT FOUND)
+    ...
+    ```
+
+    Based on {{.action}}:
+
+    **list** (default):
+    Just show the broken symlinks.
+
+    **remove**:
+    Ask: "Found X broken symlinks. Remove all? (yes/no)"
+    If yes:
+    ```bash
+    find {{.path}} -type l ! -exec test -e {} \; -delete
+    ```
+    Show what was removed.
+
+    **interactive**:
+    For each broken symlink, ask:
+    "Link: ./bin/old-tool -> /usr/local/bin/removed (broken)"
+    Options:
+    1. Remove this symlink
+    2. Update to new target (prompt for new path)
+    3. Skip
+    4. Quit
+
+    Provide summary at end:
+    - X symlinks found
+    - Y removed
+    - Z updated
+    - W skipped
+
+model:
+  temperature: 0.3
+  max_tokens: 2500
+
+examples:
+  - scmd /find-broken-symlinks
+  - scmd /find-broken-symlinks ~/projects list
+  - scmd /find-broken-symlinks . remove
+  - scmd /find-broken-symlinks /usr/local/bin interactive

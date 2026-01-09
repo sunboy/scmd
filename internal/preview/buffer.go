@@ -11,11 +11,11 @@ import (
 
 // Buffer provides an interactive command preview and editing interface
 type Buffer struct {
-	Command     string
+	Command      string
 	DetectResult *DetectResult
-	Impact      *Impact
-	Input       io.Reader
-	Output      io.Writer
+	Impact       *Impact
+	Input        io.Reader
+	Output       io.Writer
 }
 
 // NewBuffer creates a new command preview buffer

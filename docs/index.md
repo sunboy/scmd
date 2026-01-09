@@ -146,9 +146,9 @@ cat error.log | ./scmd /fix
 | Model | Size | Speed | Quality | Use Case |
 |-------|------|-------|---------|----------|
 | qwen2.5-0.5b | 379 MB | ⚡⚡⚡ | ⭐⭐ | Quick queries |
-| qwen2.5-1.5b | 940 MB | ⚡⚡ | ⭐⭐⭐ | Fast, lightweight |
+| **qwen2.5-1.5b** ⭐ | 940 MB | ⚡⚡⚡ | ⭐⭐⭐ | Default (fast, lightweight) |
 | qwen2.5-3b | 1.9 GB | ⚡⚡ | ⭐⭐⭐⭐ | Good balance |
-| **qwen3-4b** ⭐ | 2.5 GB | ⚡ | ⭐⭐⭐⭐⭐ | Default (tool calling) |
+| qwen3-4b | 2.5 GB | ⚡ | ⭐⭐⭐⭐⭐ | Alternative (tool calling) |
 | qwen2.5-7b | 4.4 GB | ⚡ | ⭐⭐⭐⭐⭐ | Best quality |
 
 ## What's Next?

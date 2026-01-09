@@ -65,14 +65,14 @@ type CommandEntry struct {
 
 // SearchOptions for filtering registry searches
 type SearchOptions struct {
-	Query      string
-	Category   string
-	Tags       []string
-	Verified   bool
-	Featured   bool
-	SortBy     string // "downloads", "rating", "updated", "name"
-	Limit      int
-	Offset     int
+	Query    string
+	Category string
+	Tags     []string
+	Verified bool
+	Featured bool
+	SortBy   string // "downloads", "rating", "updated", "name"
+	Limit    int
+	Offset   int
 }
 
 // NewRegistry creates a new registry client

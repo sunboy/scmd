@@ -1,0 +1,54 @@
+name: network-bandwidth-monitor
+version: 1.0.0
+description: Monitor bandwidth usage by process and interface
+category: network
+author: scmd team
+license: MIT
+
+args:
+  - name: interval
+    description: Update interval in seconds
+    required: false
+    default: "2"
+
+prompt:
+  system: |
+    Network bandwidth monitoring expert.
+
+  template: |
+    Monitor network bandwidth (update every {{.interval}}s).
+
+    ```bash
+    # macOS
+    nettop -P -L 1 -k time,interface,state,rx_dupe,rx_ooo,re-tx,rtt_avg,rcvsize,tx_win,tc_class,tc_mgt,cc_algo,P,C,R,W || \
+    # Linux
+    iftop -t -s {{.interval}} || nethogs -d {{.interval}}
+    ```
+
+    Present:
+    ```
+    Network Bandwidth Monitor
+    ═══════════════════════════════════════
+
+    Interface: en0 (Ethernet)
+    ↓ Download: 2.5 MB/s  ▓▓▓▓▓░░░░░
+    ↑ Upload:   0.8 MB/s  ▓▓░░░░░░░░
+
+    Top Processes:
+    1. Chrome      ↓ 1.8 MB/s  ↑ 0.2 MB/s
+    2. Dropbox     ↓ 0.4 MB/s  ↑ 0.5 MB/s
+    3. Spotify     ↓ 0.2 MB/s  ↑ 0.1 MB/s
+
+    Total transferred (session):
+    ↓ 1.2 GB    ↑ 450 MB
+
+    Press Ctrl+C to stop
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 1500
+
+examples:
+  - scmd /network-bandwidth-monitor
+  - scmd /network-bandwidth-monitor 5

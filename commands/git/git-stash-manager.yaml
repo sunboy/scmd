@@ -1,0 +1,189 @@
+name: git-stash-manager
+version: 1.0.0
+description: List, apply, pop, and manage git stashes with descriptions
+category: git
+author: scmd team
+license: MIT
+
+args:
+  - name: action
+    description: Action (list, show, apply, pop, drop, clear, save)
+    required: true
+  - name: stash_id
+    description: Stash identifier (e.g., stash@{0}, 0, or description keyword)
+    required: false
+
+prompt:
+  system: |
+    You are a Git stash management expert.
+
+    **STASH OPERATIONS:**
+    - save: Store current changes with description
+    - list: Show all stashes
+    - show: Show what's in a stash
+    - apply: Apply stash but keep it in stash list
+    - pop: Apply stash and remove from list
+    - drop: Delete a stash
+    - clear: Delete ALL stashes (dangerous!)
+
+    **SAFETY:**
+    - Explain what each operation does
+    - Show stash contents before applying/dropping
+    - Warn about conflicts when applying
+    - Confirm before clear operation
+
+  template: |
+    Stash {{.action}}{{if .stash_id}} for {{.stash_id}}{{end}}.
+
+    Execute based on {{.action}}:
+
+    **list:**
+    ```bash
+    git stash list
+    ```
+
+    Enhanced display:
+    ```bash
+    git stash list --format="%gd: %gs (%cr)"
+    ```
+
+    Present:
+    ```
+    Git Stashes:
+    ═══════════════════════════════════════
+    stash@{0}: WIP on feature: implementing auth (2 hours ago)
+    stash@{1}: WIP on main: fixing bug #123 (1 day ago)
+    stash@{2}: experimental: trying new approach (3 days ago)
+
+    Total: 3 stashes
+
+    To view: scmd /git-stash-manager show 0
+    To apply: scmd /git-stash-manager apply 0
+    ```
+
+    **show:**
+    ```bash
+    git stash show -p {{.stash_id | default "stash@{0}"}}
+    ```
+
+    Present:
+    ```
+    Stash: {{.stash_id | default "stash@{0}"}}
+    ═══════════════════════════════════════
+    WIP on feature: implementing auth
+
+    Files changed:
+    • src/auth.go (+45 -12)
+    • src/middleware.go (+23 -5)
+    • tests/auth_test.go (+67 -0)
+
+    Total: 3 files, +135 -17 lines
+
+    [Show first 20 lines of diff]
+    ```
+
+    **apply:**
+    ```bash
+    # First show what will be applied
+    git stash show -p {{.stash_id | default "stash@{0}"}}
+
+    echo "Apply this stash? (yes/no)"
+    # If yes:
+    git stash apply {{.stash_id | default "stash@{0}"}}
+    ```
+
+    If conflicts:
+    ```
+    ⚠️  Conflicts detected while applying stash!
+
+    Conflicted files:
+    • src/auth.go
+    • src/middleware.go
+
+    To resolve:
+    1. Edit conflicted files
+    2. git add <resolved-files>
+    3. Continue working
+
+    The stash remains in your stash list.
+    Use 'drop' to remove it after resolving.
+    ```
+
+    **pop:**
+    Same as apply but removes from stash list:
+    ```bash
+    git stash pop {{.stash_id | default "stash@{0}"}}
+    ```
+
+    **save:**
+    ```bash
+    git stash push -m "{{.stash_id | default "WIP: saving current work"}}"
+    ```
+
+    Include untracked files:
+    ```bash
+    git stash push -u -m "{{.stash_id}}"
+    ```
+
+    Result:
+    ```
+    ✅ Stashed Changes
+
+    Stash: stash@{0}
+    Message: {{.stash_id}}
+    Files: 5
+    Insertions: +234
+    Deletions: -67
+
+    Your working directory is now clean.
+    To restore: scmd /git-stash-manager apply 0
+    ```
+
+    **drop:**
+    ```bash
+    # Show what will be deleted
+    git stash show -p {{.stash_id | default "stash@{0}"}}
+
+    echo "⚠️  Delete this stash permanently? (yes/no)"
+    # If yes:
+    git stash drop {{.stash_id | default "stash@{0}"}}
+    ```
+
+    **clear:**
+    ```bash
+    git stash list
+
+    echo "⚠️  WARNING: This will DELETE ALL stashes!"
+    echo "Stashes cannot be recovered after clearing."
+    echo "Type 'DELETE ALL STASHES' to confirm:"
+    # If confirmed:
+    git stash clear
+    ```
+
+    Additional tips:
+    ```
+    💡 Stash Best Practices:
+
+    1. Use descriptive messages:
+       git stash push -m "WIP: auth feature before branch switch"
+
+    2. Include untracked files:
+       git stash push -u -m "message"
+
+    3. Create a branch from stash:
+       git stash branch new-branch-name stash@{0}
+
+    4. Stash specific files:
+       git stash push -m "message" path/to/file
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 3000
+
+examples:
+  - scmd /git-stash-manager list
+  - scmd /git-stash-manager show 0
+  - scmd /git-stash-manager apply 1
+  - scmd /git-stash-manager save "WIP: new feature"
+  - scmd /git-stash-manager pop

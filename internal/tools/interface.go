@@ -34,8 +34,8 @@ type Result struct {
 
 // Registry manages available tools
 type Registry struct {
-	tools    map[string]Tool
-	enabled  map[string]bool
+	tools     map[string]Tool
+	enabled   map[string]bool
 	confirmUI ConfirmUI
 }
 

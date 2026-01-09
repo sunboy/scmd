@@ -1,0 +1,60 @@
+name: port-scan
+version: 1.0.0
+description: Scan ports on localhost or remote host
+category: network
+author: scmd team
+license: MIT
+
+args:
+  - name: host
+    description: Host to scan
+    required: false
+    default: "localhost"
+  - name: ports
+    description: Port range (e.g., 1-1000, common, all)
+    required: false
+    default: "common"
+
+prompt:
+  system: |
+    Port scanning expert. Use nc or nmap if available.
+
+  template: |
+    Scan ports on {{.host}} ({{.ports}}).
+
+    ```bash
+    {{if eq .ports "common"}}
+    # Common ports
+    for port in 20 21 22 23 25 53 80 110 143 443 3306 5432 6379 8080 8443; do
+      nc -zv {{.host}} $port 2>&1 | grep succeeded
+    done
+    {{else if eq .ports "all"}}
+    nmap -p- {{.host}} || for port in {1..65535}; do nc -zv {{.host}} $port 2>&1 | grep succeeded; done
+    {{else}}
+    nmap -p {{.ports}} {{.host}} || for port in {{{.ports}}}; do nc -zv {{.host}} $port 2>&1 | grep succeeded; done
+    {{end}}
+    ```
+
+    Present:
+    ```
+    Port Scan: {{.host}}
+    ═══════════════════════════════════════
+
+    Open Ports:
+    22   SSH        ✓
+    80   HTTP       ✓
+    443  HTTPS      ✓
+    3306 MySQL      ✓
+    5432 PostgreSQL ✓
+
+    Total: 5/15 common ports open
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 2000
+
+examples:
+  - scmd /port-scan
+  - scmd /port-scan example.com
+  - scmd /port-scan localhost 8000-9000

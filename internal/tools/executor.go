@@ -10,16 +10,16 @@ import (
 
 // Executor handles tool execution for LLM tool calling
 type Executor struct {
-	registry *Registry
-	backend  backend.Backend
+	registry  *Registry
+	backend   backend.Backend
 	maxRounds int
 }
 
 // NewExecutor creates a new tool executor
 func NewExecutor(registry *Registry, backend backend.Backend) *Executor {
 	return &Executor{
-		registry: registry,
-		backend:  backend,
+		registry:  registry,
+		backend:   backend,
 		maxRounds: 5, // Max iterations to prevent infinite loops
 	}
 }

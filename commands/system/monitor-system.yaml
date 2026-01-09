@@ -1,0 +1,108 @@
+name: monitor-system
+version: 1.0.0
+description: Real-time system monitoring (CPU, RAM, disk, network, processes)
+category: system
+author: scmd team
+license: MIT
+
+args:
+  - name: interval
+    description: Update interval in seconds
+    required: false
+    default: "2"
+  - name: duration
+    description: How long to monitor (seconds, 0 = continuous)
+    required: false
+    default: "0"
+
+prompt:
+  system: |
+    You are a system monitoring expert providing real-time insights.
+
+    Show key metrics:
+    - CPU usage (overall and per-core)
+    - Memory usage (used, free, cached)
+    - Disk I/O
+    - Network traffic
+    - Top processes by CPU/memory
+    - Load average
+
+  template: |
+    Monitor system every {{.interval}} seconds{{if ne .duration "0"}} for {{.duration}} seconds{{end}}.
+
+    Use shell tool to gather metrics:
+
+    **CPU:**
+    ```bash
+    top -l 1 | grep "CPU usage"  # macOS
+    # or
+    mpstat 1 1  # Linux
+    ```
+
+    **Memory:**
+    ```bash
+    vm_stat | perl -ne '/page size of (\d+)/ and $size=$1; /Pages\s+([^:]+)[^\d]+(\d+)/ and printf("%-16s % 16.2f Mi\n", "$1:", $2 * $size / 1048576);'  # macOS
+    # or
+    free -h  # Linux
+    ```
+
+    **Disk:**
+    ```bash
+    df -h
+    iostat -d 1 2  # If available
+    ```
+
+    **Network:**
+    ```bash
+    netstat -ib  # macOS
+    # or
+    ifconfig | grep "RX bytes"  # Linux
+    ```
+
+    **Top Processes:**
+    ```bash
+    ps aux | sort -rk 3,3 | head -10  # By CPU
+    ps aux | sort -rk 4,4 | head -10  # By memory
+    ```
+
+    Present as dashboard:
+    ```
+    System Monitor (updated every {{.interval}}s)
+    ═══════════════════════════════════════════════════
+
+    CPU Usage:
+    Overall: 45.2% (user: 32.1%, system: 13.1%)
+    Core 0: ▓▓▓▓▓░░░░░ 52%
+    Core 1: ▓▓▓▓░░░░░░ 38%
+    ...
+
+    Memory:
+    Total: 16.0 GB
+    Used:  10.2 GB (64%) ▓▓▓▓▓▓▓░░░
+    Free:   5.8 GB (36%)
+
+    Disk Usage:
+    / (root):  145GB / 250GB (58%) ▓▓▓▓▓▓░░░░
+
+    Network (last second):
+    ↓ Download: 1.2 MB/s
+    ↑ Upload:   0.3 MB/s
+
+    Top Processes (CPU):
+    1. Chrome      PID 1234  45.2%  2.1 GB
+    2. node        PID 5678  12.3%  850 MB
+    ...
+
+    Press Ctrl+C to stop
+    ```
+
+    Update display every {{.interval}} seconds.
+
+model:
+  temperature: 0.3
+  max_tokens: 3000
+
+examples:
+  - scmd /monitor-system
+  - scmd /monitor-system 1
+  - scmd /monitor-system 5 60

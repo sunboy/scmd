@@ -25,8 +25,8 @@ No API keys or internet required after initial download.`,
 
 // modelsListCmd lists available models
 var modelsListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List available models",
+	Use:     "list",
+	Short:   "List available models",
 	Aliases: []string{"ls"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dataDir := getDataDir()
@@ -93,10 +93,10 @@ var modelsPullCmd = &cobra.Command{
 
 // modelsRemoveCmd removes a downloaded model
 var modelsRemoveCmd = &cobra.Command{
-	Use:   "remove <model>",
-	Short: "Remove a downloaded model",
+	Use:     "remove <model>",
+	Short:   "Remove a downloaded model",
 	Aliases: []string{"rm", "delete"},
-	Args:  cobra.ExactArgs(1),
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dataDir := getDataDir()
 		mgr := llamacpp.NewModelManager(dataDir)

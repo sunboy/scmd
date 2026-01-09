@@ -1,0 +1,138 @@
+name: git-undo
+version: 1.0.0
+description: Intelligently undo last commit, push, or merge with safety checks
+category: git
+author: scmd team
+license: MIT
+
+args:
+  - name: action
+    description: What to undo (commit, push, merge, add, reset)
+    required: true
+  - name: steps
+    description: How many steps back (default: 1)
+    required: false
+    default: "1"
+
+hooks:
+  pre:
+    - shell: git status --short
+
+prompt:
+  system: |
+    You are a Git expert helping users safely undo changes.
+
+    **SAFETY CRITICAL:**
+    - ALWAYS explain what will happen before executing
+    - Check if changes have been pushed (can't safely undo pushed commits without force)
+    - Warn about data loss potential
+    - Provide alternative approaches
+    - Never force push to main/master without explicit confirmation
+    - Show git reflog for recovery options
+
+    **UNDO STRATEGIES:**
+    - commit: git reset --soft HEAD~1 (keeps changes)
+    - push: Very dangerous, requires force push
+    - merge: git reset --hard ORIG_HEAD or git revert
+    - add: git reset HEAD <file>
+    - reset: git reflog + git reset
+
+  template: |
+    Undo {{.action}} ({{.steps}} step(s) back).
+
+    Step 1: Check git repository status
+    ```bash
+    git status
+    git log --oneline -5
+    ```
+
+    Step 2: Determine undo strategy based on {{.action}}
+
+    **For "commit":**
+    ```bash
+    # Check if commits have been pushed
+    git log origin/$(git branch --show-current)..HEAD
+
+    # If not pushed (safe):
+    git reset --soft HEAD~{{.steps}}
+    # Changes preserved in staging area
+
+    # If pushed (DANGER):
+    echo "⚠️  WARNING: This commit has been pushed!"
+    echo "Undoing requires force push which can affect other developers."
+    echo "Options:"
+    echo "1. Create revert commit (recommended): git revert HEAD"
+    echo "2. Force reset (dangerous): git reset --hard HEAD~1 && git push --force"
+    ```
+
+    **For "push":**
+    ```bash
+    echo "⚠️  DANGER: Undoing a push affects remote repository!"
+    echo "This requires force push and may break others' work."
+    echo ""
+    echo "Branch: $(git branch --show-current)"
+
+    # Check if it's main/master
+    if [[ "$(git branch --show-current)" == "main" || "$(git branch --show-current)" == "master" ]]; then
+      echo "❌ ABORT: Cannot force push to main/master"
+      echo "Use revert instead: git revert HEAD"
+      exit 1
+    fi
+
+    echo "Are you absolutely sure? Type 'YES I AM SURE' to proceed:"
+    # Wait for confirmation
+    # Then: git reset --hard HEAD~{{.steps}} && git push --force
+    ```
+
+    **For "merge":**
+    ```bash
+    # Check if merge was just completed
+    git log --merges --oneline -1
+
+    # Option 1: Using ORIG_HEAD (immediately after merge)
+    git reset --hard ORIG_HEAD
+
+    # Option 2: Revert the merge commit
+    git revert -m 1 HEAD
+    ```
+
+    **For "add":**
+    ```bash
+    # Unstage files
+    git reset HEAD
+    # Or specific files
+    git reset HEAD path/to/file
+    ```
+
+    **For "reset":**
+    ```bash
+    # Show reflog to find previous state
+    git reflog -10
+
+    echo "Find the commit you want to return to from reflog above"
+    echo "Then use: git reset --hard HEAD@{N}"
+    ```
+
+    Step 3: Execute undo with confirmation
+    Step 4: Verify result
+    ```bash
+    git status
+    git log --oneline -5
+    ```
+
+    Step 5: Provide recovery instructions
+    "If this was a mistake, recover using:"
+    ```bash
+    git reflog  # Find the operation
+    git reset --hard HEAD@{N}  # Restore
+    ```
+
+model:
+  temperature: 0.2
+  max_tokens: 3000
+
+examples:
+  - scmd /git-undo commit
+  - scmd /git-undo commit 2
+  - scmd /git-undo merge
+  - scmd /git-undo add

@@ -1,0 +1,101 @@
+name: find-port-user
+version: 1.0.0
+description: Find which process is using a specific port
+category: system
+author: scmd team
+license: MIT
+
+args:
+  - name: port
+    description: Port number to check
+    required: true
+  - name: kill
+    description: Kill the process (true/false)
+    required: false
+    default: "false"
+
+prompt:
+  system: |
+    You are a network troubleshooting expert.
+    Help users identify which process is using a port.
+
+  template: |
+    Find process using port {{.port}}{{if eq .kill "true"}}, then kill it{{end}}.
+
+    **Check port usage:**
+    ```bash
+    # macOS / BSD
+    lsof -i :{{.port}}
+
+    # Linux alternative
+    netstat -tulpn | grep :{{.port}}
+    # or
+    ss -tulpn | grep :{{.port}}
+
+    # Cross-platform (if lsof available)
+    lsof -i :{{.port}} -P -n
+    ```
+
+    Parse output and present:
+    ```
+    Port {{.port}} Usage:
+    ═══════════════════════════════════════
+
+    ✓ Port {{.port}} is IN USE
+
+    Process: node
+    PID:     12345
+    User:    sandeep
+    Command: node server.js
+    State:   LISTEN
+
+    Full details:
+    node    12345 sandeep   22u  IPv4 0x... TCP *:{{.port}} (LISTEN)
+    ```
+
+    If port is free:
+    ```
+    ✓ Port {{.port}} is AVAILABLE
+
+    No process is using this port.
+    You can safely start your service on port {{.port}}.
+    ```
+
+    {{if eq .kill "true"}}
+    **Kill process:**
+    ```bash
+    # Show confirmation
+    echo "Kill process 12345 (node server.js)? (yes/no)"
+
+    # If yes:
+    kill 12345
+
+    # Verify:
+    sleep 1
+    lsof -i :{{.port}}
+    ```
+
+    Result:
+    ```
+    ✅ Process killed successfully
+    Port {{.port}} is now available.
+    ```
+    {{end}}
+
+    Additional commands:
+    ```bash
+    # See all listening ports:
+    lsof -i -P -n | grep LISTEN
+
+    # Find process by PID:
+    ps aux | grep PID
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 2000
+
+examples:
+  - scmd /find-port-user 8080
+  - scmd /find-port-user 3000 true
+  - scmd /find-port-user 5432

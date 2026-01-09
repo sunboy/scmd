@@ -315,7 +315,7 @@ Not all backends support tool calling. Here's the current status:
 
 | Backend | Tool Calling | Notes |
 |---------|--------------|-------|
-| **llama.cpp** (qwen3-4b) | ✅ Full support | Default, works offline |
+| **llama.cpp** (qwen2.5-1.5b) | ✅ Full support | Default, works offline |
 | **Ollama** (some models) | ✅ Full support | Depends on model |
 | **OpenAI** | ✅ Full support | GPT-4, GPT-3.5-turbo |
 | **Together.ai** | ✅ Full support | Most models |
@@ -549,7 +549,7 @@ See [Tool Calling Examples](../examples/tool-calling-examples.md) for complete, 
 
 Your backend doesn't support tool calling. Options:
 
-1. Use llama.cpp with qwen3-4b (default)
+1. Use llama.cpp with qwen2.5-1.5b (default) or qwen3-4b
 2. Use Ollama with a tool-calling model
 3. Use OpenAI (GPT-4 or GPT-3.5-turbo)
 4. Command falls back to text-only mode

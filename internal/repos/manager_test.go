@@ -183,6 +183,9 @@ prompt:
 }
 
 func TestManager_SearchCommands(t *testing.T) {
+	// Allow localhost URLs for test server
+	t.Setenv("SCMD_ALLOW_LOCALHOST", "1")
+
 	// Create test server
 	manifest := `
 name: test-repo

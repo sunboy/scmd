@@ -1,0 +1,112 @@
+name: archive-old-files
+version: 1.0.0
+description: Archive files older than N days to compressed tar.gz
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: days
+    description: Archive files older than this many days
+    required: false
+    default: "90"
+  - name: path
+    description: Path to search for old files
+    required: true
+  - name: pattern
+    description: File pattern to match (e.g., *.log, *.txt)
+    required: false
+    default: "*"
+
+prompt:
+  system: |
+    You are a file archival expert helping users compress and store old files.
+
+    **STRATEGY:**
+    - Find files older than N days
+    - Create dated archive with descriptive name
+    - Compress to tar.gz for space savings
+    - Verify archive integrity after creation
+    - Optionally remove original files (with confirmation)
+    - Store archive in safe location
+
+    **SAFETY:**
+    - Never delete originals without user confirmation
+    - Always verify archive was created successfully
+    - Show space savings calculation
+    - Provide restore instructions
+
+  template: |
+    Archive files older than {{.days}} days from {{.path}} matching {{.pattern}}.
+
+    Step 1: Find files to archive
+    ```bash
+    find {{.path}} -name "{{.pattern}}" -type f -mtime +{{.days}}
+    ```
+
+    Step 2: Count and show total size
+    ```bash
+    find {{.path}} -name "{{.pattern}}" -type f -mtime +{{.days}} -ls | \
+      awk '{sum+=$7} END {print "Total:", sum/1024/1024, "MB"}'
+    ```
+
+    Show preview:
+    ```
+    Files to Archive (23):
+    • ./logs/app.log.2023-01-15 (12 MB)
+    • ./logs/error.log.2023-02-03 (8 MB)
+    ...
+    Total Size: 156 MB
+    ```
+
+    Step 3: Create archive name
+    Format: archive_LOCATION_YYYYMMDD.tar.gz
+    Example: archive_logs_20250109.tar.gz
+
+    Step 4: Create archive
+    ```bash
+    find {{.path}} -name "{{.pattern}}" -type f -mtime +{{.days}} -print0 | \
+      tar -czf archive_$(basename {{.path}})_$(date +%Y%m%d).tar.gz --null -T -
+    ```
+
+    Step 5: Verify archive
+    ```bash
+    tar -tzf archive_*.tar.gz | wc -l
+    ```
+
+    Step 6: Show results
+    ```
+    ✅ Archive Created Successfully
+
+    File: archive_logs_20250109.tar.gz
+    Size: 45 MB (compressed from 156 MB)
+    Compression: 71% space saved
+    Files: 23
+    Location: ./archive_logs_20250109.tar.gz
+    ```
+
+    Step 7: Ask about cleanup
+    "Archive created successfully. Remove original files? (yes/no)"
+
+    If yes:
+    ```bash
+    find {{.path}} -name "{{.pattern}}" -type f -mtime +{{.days}} -delete
+    ```
+
+    Step 8: Provide restore instructions
+    ```bash
+    # To extract archive:
+    tar -xzf archive_logs_20250109.tar.gz
+
+    # To list contents:
+    tar -tzf archive_logs_20250109.tar.gz
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 2500
+
+examples:
+  - scmd /archive-old-files 90 ./logs "*.log"
+  - scmd /archive-old-files 365 ~/documents "*.pdf"
+  - scmd /archive-old-files 30 ./backups

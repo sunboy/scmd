@@ -15,14 +15,14 @@ type mockCommand struct {
 	category    Category
 }
 
-func (c *mockCommand) Name() string             { return c.name }
-func (c *mockCommand) Aliases() []string        { return c.aliases }
-func (c *mockCommand) Description() string      { return c.description }
-func (c *mockCommand) Usage() string            { return "/" + c.name }
-func (c *mockCommand) Examples() []string       { return nil }
-func (c *mockCommand) Category() Category       { return c.category }
-func (c *mockCommand) RequiresBackend() bool    { return false }
-func (c *mockCommand) Validate(_ *Args) error   { return nil }
+func (c *mockCommand) Name() string           { return c.name }
+func (c *mockCommand) Aliases() []string      { return c.aliases }
+func (c *mockCommand) Description() string    { return c.description }
+func (c *mockCommand) Usage() string          { return "/" + c.name }
+func (c *mockCommand) Examples() []string     { return nil }
+func (c *mockCommand) Category() Category     { return c.category }
+func (c *mockCommand) RequiresBackend() bool  { return false }
+func (c *mockCommand) Validate(_ *Args) error { return nil }
 func (c *mockCommand) Execute(_ context.Context, _ *Args, _ *ExecContext) (*Result, error) {
 	return &Result{Success: true}, nil
 }

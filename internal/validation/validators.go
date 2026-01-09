@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -70,6 +71,8 @@ func ValidateCommandName(name string) error {
 // - Not point to localhost or private IPs (SSRF protection)
 // - Not point to AWS metadata endpoint
 // - Have a valid hostname
+//
+// Note: SSRF protections are bypassed when SCMD_ALLOW_LOCALHOST=1 (for integration tests)
 func ValidateRepoURL(urlStr string) error {
 	if urlStr == "" {
 		return fmt.Errorf("%w: URL cannot be empty", ErrInvalidURL)
@@ -91,6 +94,13 @@ func ValidateRepoURL(urlStr string) error {
 	hostname := parsedURL.Hostname()
 	if hostname == "" {
 		return fmt.Errorf("%w: missing hostname", ErrInvalidURL)
+	}
+
+	// Skip SSRF protection in test mode (for repos integration tests)
+	// This allows testing with localhost test servers
+	isTestMode := strings.ToLower(strings.TrimSpace(getEnv("SCMD_ALLOW_LOCALHOST"))) == "1"
+	if isTestMode {
+		return nil
 	}
 
 	// SSRF Protection: Reject localhost
@@ -194,4 +204,10 @@ func ValidateAliases(aliases []string) error {
 		}
 	}
 	return nil
+}
+
+// getEnv returns an environment variable value
+// This is a helper function to make testing easier
+func getEnv(key string) string {
+	return os.Getenv(key)
 }

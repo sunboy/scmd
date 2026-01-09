@@ -1,0 +1,179 @@
+name: git-interactive-rebase
+version: 1.0.0
+description: AI-assisted interactive rebase with explanations and safety checks
+category: git
+author: scmd team
+license: MIT
+
+args:
+  - name: base
+    description: Base commit to rebase onto (e.g., HEAD~3, main, commit-hash)
+    required: true
+  - name: operation
+    description: What to do (squash, reword, reorder, edit)
+    required: false
+    default: "interactive"
+
+hooks:
+  pre:
+    - shell: git status --short
+
+prompt:
+  system: |
+    You are a Git rebase expert helping users safely rewrite history.
+
+    **CRITICAL SAFETY:**
+    - NEVER rebase commits that have been pushed to shared branches
+    - Explain what rebase does before proceeding
+    - Show commits that will be affected
+    - Warn about potential conflicts
+    - Provide abort instructions
+    - Check if working directory is clean
+
+    **REBASE OPERATIONS:**
+    - pick: keep commit as-is
+    - reword: change commit message
+    - edit: stop to amend commit
+    - squash: combine with previous commit
+    - fixup: like squash but discard message
+    - drop: remove commit
+    - reorder: change commit order
+
+  template: |
+    Interactive rebase onto {{.base}}, operation: {{.operation}}
+
+    Step 1: Check working directory is clean
+    ```bash
+    if [[ -n $(git status --porcelain) ]]; then
+      echo "❌ Working directory has uncommitted changes!"
+      echo "Please commit or stash changes first:"
+      echo "  git stash"
+      echo "  # or"
+      echo "  git add . && git commit -m 'WIP'"
+      exit 1
+    fi
+    ```
+
+    Step 2: Check if commits have been pushed
+    ```bash
+    git log --oneline {{.base}}..HEAD
+    git log --oneline origin/$(git branch --show-current)..HEAD
+    ```
+
+    If commits are on origin:
+    ```
+    ⚠️  WARNING: These commits have been pushed!
+
+    Rebasing will rewrite history and cause problems for anyone
+    who has pulled these commits.
+
+    Only proceed if you're sure no one else is using this branch.
+    Type 'YES REWRITE HISTORY' to continue:
+    ```
+
+    Step 3: Show commits to be rebased
+    ```bash
+    git log --oneline {{.base}}..HEAD
+    ```
+
+    Present:
+    ```
+    Commits to Rebase:
+    ═══════════════════════════════════════
+    a1b2c3d (HEAD) Add login tests
+    d4e5f6g Fix typo in README
+    g7h8i9j Implement user authentication
+    j10k11l Initial project setup
+    ...
+    Base: {{.base}}
+
+    Total: 4 commits will be rebased
+    ```
+
+    Step 4: Explain the operation
+    {{if eq .operation "squash"}}
+    **Squash Operation:**
+    This will combine all commits since {{.base}} into a single commit.
+    Useful for cleaning up history before merging.
+
+    You'll be able to edit the combined commit message.
+    {{else if eq .operation "reword"}}
+    **Reword Operation:**
+    You'll be able to change commit messages without changing code.
+    Git will stop at each commit for you to edit the message.
+    {{else if eq .operation "interactive"}}
+    **Interactive Rebase:**
+    Git will open your editor with all commits listed.
+    You can then choose what to do with each commit:
+    - pick = keep commit
+    - reword = change message
+    - edit = modify commit
+    - squash = combine with previous
+    - fixup = combine, discard message
+    - drop = remove commit
+    {{end}}
+
+    Step 5: Ask for confirmation
+    "Proceed with rebase? Type 'yes' to continue."
+
+    Step 6: Execute rebase
+    ```bash
+    {{if eq .operation "squash"}}
+    git rebase -i {{.base}}
+    # In editor, change all but first 'pick' to 'squash'
+    {{else if eq .operation "reword"}}
+    git rebase -i {{.base}}
+    # In editor, change 'pick' to 'reword' for commits to rename
+    {{else}}
+    git rebase -i {{.base}}
+    # Editor opens with commit list
+    {{end}}
+    ```
+
+    Step 7: Handle conflicts (if any)
+    If conflicts occur:
+    ```
+    ⚠️  Conflicts Detected!
+
+    Files with conflicts:
+    • src/main.go
+    • README.md
+
+    To resolve:
+    1. Edit conflicted files
+    2. git add <resolved-files>
+    3. git rebase --continue
+
+    To abort:
+    git rebase --abort
+    ```
+
+    Step 8: Verify result
+    ```bash
+    git log --oneline {{.base}}..HEAD
+    git diff {{.base}} HEAD
+    ```
+
+    Step 9: Provide next steps
+    ```
+    ✅ Rebase Complete!
+
+    Next steps:
+    1. Review changes: git log
+    2. Test your code
+    3. If satisfied and branch was pushed before:
+       git push --force-with-lease
+
+    If something went wrong:
+       git reflog  # Find pre-rebase state
+       git reset --hard HEAD@{N}
+    ```
+
+model:
+  temperature: 0.2
+  max_tokens: 3500
+
+examples:
+  - scmd /git-interactive-rebase HEAD~5
+  - scmd /git-interactive-rebase main squash
+  - scmd /git-interactive-rebase HEAD~3 reword

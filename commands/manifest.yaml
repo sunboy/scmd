@@ -1,0 +1,424 @@
+name: scmd-commands
+version: 1.0.0
+description: Comprehensive collection of 60 AI-powered slash commands for Unix workflows
+author: scmd team
+license: MIT
+homepage: https://github.com/scmd/commands
+repository: https://github.com/scmd/commands.git
+
+keywords:
+  - unix
+  - commands
+  - automation
+  - system-administration
+  - development
+  - git
+  - docker
+  - networking
+
+categories:
+  - file-ops
+  - git
+  - system
+  - network
+  - docker
+  - development
+  - text
+  - ssh
+
+commands:
+  # File Operations (15) - ALL IMPLEMENTED
+  - name: find-large-files
+    file: file-ops/find-large-files.yaml
+    category: file-ops
+    description: Find files larger than specified size
+    status: implemented
+
+  - name: find-recent
+    file: file-ops/find-recent.yaml
+    category: file-ops
+    description: Find recently modified files
+    status: implemented
+
+  - name: find-duplicates
+    file: file-ops/find-duplicates.yaml
+    category: file-ops
+    description: Find duplicate files by content hash
+    status: implemented
+
+  - name: bulk-rename
+    file: file-ops/bulk-rename.yaml
+    category: file-ops
+    description: Rename multiple files with patterns
+    status: implemented
+
+  - name: safe-delete
+    file: file-ops/safe-delete.yaml
+    category: file-ops
+    description: Move files to trash safely
+    status: implemented
+
+  - name: disk-usage
+    file: file-ops/disk-usage.yaml
+    category: file-ops
+    description: Analyze disk usage with visual tree
+    status: implemented
+
+  - name: find-empty
+    file: file-ops/find-empty.yaml
+    category: file-ops
+    description: Find empty files and directories
+    status: implemented
+
+  - name: change-permissions-recursive
+    file: file-ops/change-permissions-recursive.yaml
+    category: file-ops
+    description: Change permissions recursively with preview
+    status: implemented
+
+  - name: find-broken-symlinks
+    file: file-ops/find-broken-symlinks.yaml
+    category: file-ops
+    description: Find and fix broken symbolic links
+    status: implemented
+
+  - name: archive-old-files
+    file: file-ops/archive-old-files.yaml
+    category: file-ops
+    description: Archive old files to compressed tarball
+    status: implemented
+
+  - name: sync-directories
+    file: file-ops/sync-directories.yaml
+    category: file-ops
+    description: Sync directories with rsync
+    status: implemented
+
+  - name: find-by-extension
+    file: file-ops/find-by-extension.yaml
+    category: file-ops
+    description: Find files by extension with statistics
+    status: implemented
+
+  - name: batch-convert-images
+    file: file-ops/batch-convert-images.yaml
+    category: file-ops
+    description: Convert images between formats
+    status: implemented
+
+  - name: find-and-replace-filename
+    file: file-ops/find-and-replace-filename.yaml
+    category: file-ops
+    description: Find and replace text in filenames
+    status: implemented
+
+  - name: check-file-encoding
+    file: file-ops/check-file-encoding.yaml
+    category: file-ops
+    description: Detect and convert file encodings
+    status: implemented
+
+  # Git Operations (8) - ALL IMPLEMENTED
+  - name: git-undo
+    file: git/git-undo.yaml
+    category: git
+    description: Undo last commit/push/merge safely
+    status: implemented
+
+  - name: git-cleanup-branches
+    file: git/git-cleanup-branches.yaml
+    category: git
+    description: Delete merged branches
+    status: implemented
+
+  - name: git-find-commit
+    file: git/git-find-commit.yaml
+    category: git
+    description: Search commits by various criteria
+    status: implemented
+
+  - name: git-interactive-rebase
+    file: git/git-interactive-rebase.yaml
+    category: git
+    description: AI-assisted interactive rebase
+    status: implemented
+
+  - name: git-bisect-helper
+    file: git/git-bisect-helper.yaml
+    category: git
+    description: Guide through git bisect
+    status: implemented
+
+  - name: git-stash-manager
+    file: git/git-stash-manager.yaml
+    category: git
+    description: Manage git stashes
+    status: implemented
+
+  - name: git-conflict-resolver
+    file: git/git-conflict-resolver.yaml
+    category: git
+    description: Help resolve merge conflicts
+    status: implemented
+
+  - name: git-blame-analysis
+    file: git/git-blame-analysis.yaml
+    category: git
+    description: Analyze git blame with context
+    status: implemented
+
+  # System Administration (8) - ALL IMPLEMENTED
+  - name: monitor-system
+    file: system/monitor-system.yaml
+    category: system
+    description: Real-time system monitoring
+    status: implemented
+
+  - name: find-port-user
+    file: system/find-port-user.yaml
+    category: system
+    description: Find process using a port
+    status: implemented
+
+  - name: check-service-status
+    file: system/check-service-status.yaml
+    category: system
+    description: Check system services status
+    status: implemented
+
+  - name: analyze-logs
+    file: system/analyze-logs.yaml
+    category: system
+    description: Search and analyze log files
+    status: implemented
+
+  - name: disk-cleanup
+    file: system/disk-cleanup.yaml
+    category: system
+    description: Clean up disk space
+    status: implemented
+
+  - name: process-tree
+    file: system/process-tree.yaml
+    category: system
+    description: Show process tree with resources
+    status: implemented
+
+  - name: check-startup-programs
+    file: system/check-startup-programs.yaml
+    category: system
+    description: Manage startup programs
+    status: implemented
+
+  - name: system-health-check
+    file: system/system-health-check.yaml
+    category: system
+    description: Comprehensive system diagnostic
+    status: implemented
+
+  # Network Tools (7) - ALL IMPLEMENTED
+  - name: test-connectivity
+    file: network/test-connectivity.yaml
+    category: network
+    description: Test network connectivity
+    status: implemented
+
+  - name: port-scan
+    file: network/port-scan.yaml
+    category: network
+    description: Scan ports on host
+    status: implemented
+
+  - name: network-speed-test
+    file: network/network-speed-test.yaml
+    category: network
+    description: Test internet speed
+    status: implemented
+
+  - name: dns-lookup
+    file: network/dns-lookup.yaml
+    category: network
+    description: Comprehensive DNS lookup
+    status: implemented
+
+  - name: http-request-debug
+    file: network/http-request-debug.yaml
+    category: network
+    description: Debug HTTP requests
+    status: implemented
+
+  - name: find-local-ips
+    file: network/find-local-ips.yaml
+    category: network
+    description: Show local IP addresses
+    status: implemented
+
+  - name: network-bandwidth-monitor
+    file: network/network-bandwidth-monitor.yaml
+    category: network
+    description: Monitor network bandwidth
+    status: implemented
+
+  # Docker (6) - PLANNED (specs in REMAINING_COMMANDS_SPEC.md)
+  - name: docker-cleanup
+    file: docker/docker-cleanup.yaml
+    category: docker
+    description: Clean up Docker resources
+    status: planned
+
+  - name: docker-logs-follow
+    file: docker/docker-logs-follow.yaml
+    category: docker
+    description: Follow container logs
+    status: planned
+
+  - name: docker-resource-usage
+    file: docker/docker-resource-usage.yaml
+    category: docker
+    description: Show container resource usage
+    status: planned
+
+  - name: docker-shell
+    file: docker/docker-shell.yaml
+    category: docker
+    description: Open shell in container
+    status: planned
+
+  - name: docker-network-inspect
+    file: docker/docker-network-inspect.yaml
+    category: docker
+    description: Inspect Docker networks
+    status: planned
+
+  - name: docker-compose-helper
+    file: docker/docker-compose-helper.yaml
+    category: docker
+    description: Generate docker-compose.yml
+    status: planned
+
+  # Development (8) - PLANNED (specs in REMAINING_COMMANDS_SPEC.md)
+  - name: setup-project
+    file: development/setup-project.yaml
+    category: development
+    description: Initialize new project
+    status: planned
+
+  - name: dependency-audit
+    file: development/dependency-audit.yaml
+    category: development
+    description: Audit dependencies for vulnerabilities
+    status: planned
+
+  - name: port-is-free
+    file: development/port-is-free.yaml
+    category: development
+    description: Check if port is available
+    status: planned
+
+  - name: generate-env-template
+    file: development/generate-env-template.yaml
+    category: development
+    description: Generate .env.example from .env
+    status: planned
+
+  - name: check-outdated-deps
+    file: development/check-outdated-deps.yaml
+    category: development
+    description: Check for outdated dependencies
+    status: planned
+
+  - name: run-all-tests
+    file: development/run-all-tests.yaml
+    category: development
+    description: Run tests with coverage
+    status: planned
+
+  - name: benchmark-code
+    file: development/benchmark-code.yaml
+    category: development
+    description: Run code benchmarks
+    status: planned
+
+  - name: lint-and-format
+    file: development/lint-and-format.yaml
+    category: development
+    description: Run linters and formatters
+    status: planned
+
+  # Text Processing (5) - PLANNED (specs in REMAINING_COMMANDS_SPEC.md)
+  - name: grep-advanced
+    file: text/grep-advanced.yaml
+    category: text
+    description: Advanced text search
+    status: planned
+
+  - name: csv-to-json
+    file: text/csv-to-json.yaml
+    category: text
+    description: Convert CSV to JSON
+    status: planned
+
+  - name: json-query
+    file: text/json-query.yaml
+    category: text
+    description: Query JSON files
+    status: planned
+
+  - name: extract-urls
+    file: text/extract-urls.yaml
+    category: text
+    description: Extract URLs from text
+    status: planned
+
+  - name: count-lines-by-type
+    file: text/count-lines-by-type.yaml
+    category: text
+    description: Count lines of code by type
+    status: planned
+
+  # SSH (3) - PLANNED (specs in REMAINING_COMMANDS_SPEC.md)
+  - name: ssh-tunnel
+    file: ssh/ssh-tunnel.yaml
+    category: ssh
+    description: Create SSH tunnel
+    status: planned
+
+  - name: ssh-copy-id-helper
+    file: ssh/ssh-copy-id-helper.yaml
+    category: ssh
+    description: Copy SSH key to remote server
+    status: planned
+
+  - name: remote-command
+    file: ssh/remote-command.yaml
+    category: ssh
+    description: Execute command on remote hosts
+    status: planned
+
+compatibility:
+  scmd_version: ">=0.1.0"
+  platforms:
+    - linux
+    - darwin
+
+requirements:
+  optional:
+    - jq
+    - nmap
+    - docker
+    - git
+    - imagemagick
+    - speedtest-cli
+
+stats:
+  total_commands: 60
+  completed: 38
+  remaining: 22
+  categories: 8
+
+metadata:
+  created: "2024-01-09"
+  last_updated: "2024-01-09"
+  maintainers:
+    - name: scmd team
+      email: team@scmd.dev

@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/scmd/scmd/internal/backend/llamacpp"
+	"github.com/spf13/cobra"
 )
 
 var doctorCmd = &cobra.Command{

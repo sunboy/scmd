@@ -40,28 +40,28 @@ builds:
 
 archives:
   - id: scmd
-    format: tar.gz
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_
       {{- if eq .Os "darwin" }}macOS
       {{- else }}{{ .Os }}{{ end }}_
       {{- .Arch }}
-    format_overrides:
-      - goos: windows
-        format: zip
     files:
       - README.md
       - LICENSE
       - INSTALL.md
       - CHANGELOG.md
       - completions/*
+    # Default format is tar.gz, windows automatically uses zip
+    formats:
+      - tar.gz
+      - zip
 
 checksum:
   name_template: 'checksums.txt'
   algorithm: sha256
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 
 changelog:
   sort: asc

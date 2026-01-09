@@ -1,0 +1,190 @@
+name: git-conflict-resolver
+version: 1.0.0
+description: Help resolve merge conflicts with context and suggestions
+category: git
+author: scmd team
+license: MIT
+
+args:
+  - name: file
+    description: Specific file to help with (optional, shows all if not specified)
+    required: false
+
+prompt:
+  system: |
+    You are a Git merge conflict resolution expert.
+
+    **CONFLICT MARKERS:**
+    <<<<<<< HEAD (your changes)
+    your code
+    =======
+    their code
+    >>>>>>> branch-name (incoming changes)
+
+    **RESOLUTION STRATEGIES:**
+    - Keep yours: Use your changes, discard theirs
+    - Keep theirs: Use their changes, discard yours
+    - Keep both: Merge both changes manually
+    - Rewrite: Neither is correct, write new code
+
+    Provide context to help user decide.
+
+  template: |
+    Help resolve merge conflicts{{if .file}} in {{.file}}{{end}}.
+
+    Step 1: Check for conflicts
+    ```bash
+    {{if .file}}
+    git diff --name-only --diff-filter=U | grep {{.file}}
+    {{else}}
+    git diff --name-only --diff-filter=U
+    {{end}}
+    ```
+
+    Step 2: Show conflict status
+    ```bash
+    git status --short
+    ```
+
+    Present overview:
+    ```
+    Merge Conflicts Detected
+    ═══════════════════════════════════════
+
+    Conflicted files:
+    • src/auth.go (3 conflicts)
+    • src/api.go (1 conflict)
+    • README.md (2 conflicts)
+
+    Total: 6 conflicts in 3 files
+    ```
+
+    Step 3: For each conflicted file, show details
+    {{if .file}}
+    Focus on {{.file}}:
+    {{else}}
+    Process each file:
+    {{end}}
+
+    ```bash
+    # Show conflict markers with context
+    git diff {{.file | default ""}}
+    ```
+
+    Present each conflict:
+    ```
+    File: src/auth.go
+    ═══════════════════════════════════════
+
+    Conflict #1 (lines 45-52):
+
+    <<<<<<< HEAD (your changes)
+    func authenticate(user string) error {
+        return validateUser(user)
+    }
+    =======
+    func authenticate(username, password string) error {
+        return checkCredentials(username, password)
+    }
+    >>>>>>> feature-branch
+
+    Context:
+    • Your version: Single parameter, calls validateUser()
+    • Their version: Two parameters, calls checkCredentials()
+
+    Analysis:
+    Their version adds password parameter - likely more secure.
+    Your version might be incomplete.
+
+    Suggestion: Keep their version (adds security feature)
+
+    To keep theirs:
+       Edit file and remove HEAD section, keep feature-branch section
+       Remove conflict markers
+
+    To keep yours:
+       Edit file and remove feature-branch section, keep HEAD section
+       Remove conflict markers
+
+    To merge both:
+       Combine logic from both versions manually
+    ```
+
+    Step 4: Guide through resolution
+    ```
+    Resolution Steps:
+    1. Open src/auth.go in your editor
+    2. Find conflict markers (<<<<<<< =======  >>>>>>>)
+    3. Decide which version to keep (or merge both)
+    4. Remove conflict markers
+    5. Test the code
+    6. Mark as resolved:
+       git add src/auth.go
+    ```
+
+    Step 5: Check resolution progress
+    ```bash
+    git status
+    git diff --check  # Check for remaining conflict markers
+    ```
+
+    ```
+    Resolution Progress:
+    ✅ src/auth.go (resolved)
+    ⏳ src/api.go (1 conflict remaining)
+    ⏳ README.md (2 conflicts remaining)
+    ```
+
+    Step 6: Complete merge once all resolved
+    ```bash
+    # Verify all conflicts resolved
+    if [[ -z $(git diff --name-only --diff-filter=U) ]]; then
+      echo "All conflicts resolved!"
+      echo "Ready to complete merge:"
+      echo "  git commit"
+    else
+      echo "Still have unresolved conflicts:"
+      git diff --name-only --diff-filter=U
+    fi
+    ```
+
+    Step 7: Abort if needed
+    ```
+    To abort the merge and start over:
+       git merge --abort
+
+    This returns to pre-merge state.
+    ```
+
+    Pro tips:
+    ```
+    💡 Conflict Resolution Tips:
+
+    1. Use a merge tool:
+       git mergetool
+
+    2. See common ancestor (base):
+       git show :1:filename
+
+    3. See your version:
+       git show :2:filename
+
+    4. See their version:
+       git show :3:filename
+
+    5. Accept all yours:
+       git checkout --ours filename
+
+    6. Accept all theirs:
+       git checkout --theirs filename
+
+    7. After fixing, test before committing!
+    ```
+
+model:
+  temperature: 0.4
+  max_tokens: 3500
+
+examples:
+  - scmd /git-conflict-resolver
+  - scmd /git-conflict-resolver src/main.go

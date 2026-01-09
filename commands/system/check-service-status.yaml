@@ -1,0 +1,108 @@
+name: check-service-status
+version: 1.0.0
+description: Check status of system services (systemd/launchd)
+category: system
+author: scmd team
+license: MIT
+
+args:
+  - name: service
+    description: Service name (optional, shows all if not specified)
+    required: false
+
+prompt:
+  system: |
+    You are a system service management expert.
+    Work with systemd (Linux) and launchd (macOS).
+
+  template: |
+    Check service status{{if .service}} for {{.service}}{{end}}.
+
+    **Detect OS and service manager:**
+    ```bash
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      echo "macOS - using launchctl"
+    elif command -v systemctl &> /dev/null; then
+      echo "Linux - using systemd"
+    else
+      echo "Unknown service manager"
+    fi
+    ```
+
+    {{if .service}}
+    **Check specific service:**
+    ```bash
+    # macOS (launchd)
+    launchctl list | grep {{.service}}
+    launchctl print system/{{.service}}
+
+    # Linux (systemd)
+    systemctl status {{.service}}
+    systemctl is-active {{.service}}
+    systemctl is-enabled {{.service}}
+    ```
+
+    Present status:
+    ```
+    Service: {{.service}}
+    ═══════════════════════════════════════
+
+    Status:  ● Active (running)
+    Enabled: Yes (starts on boot)
+    PID:     1234
+    Uptime:  2 days 5 hours
+    Memory:  45.2 MB
+
+    Recent logs:
+    Jan 09 10:15:32 server started successfully
+    Jan 09 10:15:33 listening on port 8080
+    ```
+
+    Service controls:
+    ```bash
+    # Start:   sudo systemctl start {{.service}}
+    # Stop:    sudo systemctl stop {{.service}}
+    # Restart: sudo systemctl restart {{.service}}
+    # Enable:  sudo systemctl enable {{.service}}
+    # Disable: sudo systemctl disable {{.service}}
+    ```
+    {{else}}
+    **List all services:**
+    ```bash
+    # macOS
+    launchctl list
+
+    # Linux
+    systemctl list-units --type=service --all
+    ```
+
+    Group by status:
+    ```
+    System Services Overview:
+    ═══════════════════════════════════════
+
+    Running (15):
+    ● ssh.service - OpenSSH server
+    ● nginx.service - Nginx web server
+    ● postgresql.service - PostgreSQL database
+    ...
+
+    Failed (2):
+    ✗ myapp.service - My Application
+    ✗ backup.service - Backup Service
+
+    Inactive (8):
+    ○ bluetooth.service
+    ○ cups.service
+    ...
+    ```
+    {{end}}
+
+model:
+  temperature: 0.3
+  max_tokens: 2500
+
+examples:
+  - scmd /check-service-status
+  - scmd /check-service-status nginx
+  - scmd /check-service-status postgresql

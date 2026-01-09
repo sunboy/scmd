@@ -1,0 +1,74 @@
+name: find-duplicates
+version: 1.0.0
+description: Find duplicate files by comparing content hash (MD5/SHA256)
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: path
+    description: Path to search for duplicates
+    required: false
+    default: "."
+  - name: min_size
+    description: Minimum file size to check (skip tiny files)
+    required: false
+    default: "1K"
+
+prompt:
+  system: |
+    You are a file system expert helping users find duplicate files.
+
+    **STRATEGY:**
+    1. First find files by size (duplicates must have same size)
+    2. For files with matching sizes, compute hash (MD5 or SHA256)
+    3. Group files by hash to identify duplicates
+    4. Show total wasted space
+    5. Suggest safe cleanup strategies
+
+    **SAFETY:**
+    - Never auto-delete files
+    - Show which file is oldest (likely original)
+    - Warn about symlinks vs actual duplicates
+
+  template: |
+    Find duplicate files in {{.path}} (minimum size: {{.min_size}}).
+
+    Use this multi-step approach with shell tool:
+
+    1. Find all files larger than {{.min_size}}
+    2. Group by file size
+    3. For groups with multiple files, compute MD5 hash
+    4. Group files by hash to find duplicates
+
+    Example commands:
+    ```bash
+    # Find files grouped by size
+    find {{.path}} -type f -size +{{.min_size}} -exec ls -l {} \; | \
+      awk '{print $5 " " $9}' | \
+      sort -n | \
+      uniq -d -w 10
+
+    # For each duplicate group, compute hash
+    find {{.path}} -type f -size EXACT_SIZE -exec md5sum {} \;
+    ```
+
+    Present results as:
+    - Hash value
+    - List of duplicate file paths with timestamps
+    - Total wasted space for each group
+    - Suggested files to keep/delete (keep oldest)
+
+    Provide summary:
+    - Total duplicate files found
+    - Total space that could be freed
+    - Safe deletion commands (move to trash, not rm)
+
+model:
+  temperature: 0.3
+  max_tokens: 3000
+
+examples:
+  - scmd /find-duplicates
+  - scmd /find-duplicates ~/Downloads
+  - scmd /find-duplicates ~/photos 10M

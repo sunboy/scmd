@@ -1,0 +1,199 @@
+name: system-health-check
+version: 1.0.0
+description: Comprehensive system health diagnostic (CPU, memory, disk, network, services)
+category: system
+author: scmd team
+license: MIT
+
+args:
+  - name: report_file
+    description: Save report to file
+    required: false
+
+prompt:
+  system: |
+    You are a system health diagnostic expert.
+    Perform comprehensive health checks and provide actionable insights.
+
+  template: |
+    Run comprehensive system health check{{if .report_file}}, save to {{.report_file}}{{end}}.
+
+    **1. System Information:**
+    ```bash
+    uname -a
+    uptime
+    date
+    ```
+
+    **2. CPU Health:**
+    ```bash
+    # Load average
+    uptime | awk -F'load average:' '{print $2}'
+
+    # CPU cores
+    sysctl -n hw.ncpu 2>/dev/null || nproc
+
+    # CPU usage
+    top -l 1 | grep "CPU usage" 2>/dev/null || mpstat 1 1
+    ```
+
+    **3. Memory Health:**
+    ```bash
+    # Total and available
+    vm_stat 2>/dev/null || free -h
+
+    # Swap usage
+    swapon --show 2>/dev/null || sysctl vm.swapusage
+    ```
+
+    **4. Disk Health:**
+    ```bash
+    # Disk usage
+    df -h
+
+    # Disk I/O
+    iostat -d 2 2
+
+    # S.M.A.R.T status (if available)
+    smartctl -H /dev/sda 2>/dev/null
+    ```
+
+    **5. Network Health:**
+    ```bash
+    # Interfaces
+    ifconfig | grep -E "^[a-z]|inet"
+
+    # Connectivity
+    ping -c 3 8.8.8.8
+    ping -c 3 google.com
+
+    # DNS
+    nslookup google.com
+    ```
+
+    **6. Service Health:**
+    ```bash
+    # Critical services
+    systemctl status sshd 2>/dev/null
+    launchctl list | grep -i "ssh\|network" 2>/dev/null
+    ```
+
+    **7. Security:**
+    ```bash
+    # Failed login attempts
+    grep "Failed password" /var/log/auth.log 2>/dev/null | tail -10
+
+    # Open ports
+    lsof -i -P -n | grep LISTEN
+    ```
+
+    **Present health report:**
+    ```
+    System Health Report
+    ═══════════════════════════════════════
+    Generated: 2024-01-09 10:30:45
+    Hostname: macbook-pro
+    OS: macOS 14.2.1 (Darwin 23.2.0)
+    Uptime: 15 days, 3 hours
+
+    Overall Status: ⚠️  WARNING
+
+    1. CPU Health: ✅ GOOD
+    ─────────────────────────────────────
+    Cores: 8
+    Load avg: 2.5, 2.1, 1.9 (1min, 5min, 15min)
+    Current usage: 35%
+    Status: Load is within normal range
+
+    2. Memory Health: ⚠️  WARNING
+    ─────────────────────────────────────
+    Total: 16 GB
+    Used: 14.2 GB (89%)  ⚠️
+    Free: 1.8 GB (11%)
+    Swap: 2.1 GB used
+    Status: Memory usage is high, swap being used
+
+    3. Disk Health: ✅ GOOD
+    ─────────────────────────────────────
+    / (root): 145 GB / 250 GB (58%)
+    I/O wait: 2.3% (normal)
+    S.M.A.R.T: PASSED
+    Status: Sufficient space available
+
+    4. Network Health: ✅ GOOD
+    ─────────────────────────────────────
+    Interface: en0 (active)
+    IP: 192.168.1.100
+    Internet: Connected (3ms to 8.8.8.8)
+    DNS: Working (google.com resolves)
+    Status: Network is operational
+
+    5. Services Health: ✅ GOOD
+    ─────────────────────────────────────
+    SSH: Active (running)
+    Critical services: All running
+    Status: Services are healthy
+
+    6. Security: ✅ GOOD
+    ─────────────────────────────────────
+    Failed logins: 2 (last 24h)
+    Open ports: 5 (ssh, http, https, postgresql, redis)
+    Status: No security concerns detected
+
+    Issues Found: 1
+    ═══════════════════════════════════════
+
+    ⚠️  HIGH MEMORY USAGE (89%)
+    Severity: Warning
+    Impact: Performance degradation, increased swap usage
+
+    Recommendations:
+    1. Close unused applications
+    2. Restart memory-intensive apps (Chrome, Docker)
+    3. Check for memory leaks:
+       scmd /process-tree
+    4. Consider upgrading RAM if consistently high
+
+    Overall Score: 85/100 (Good with warnings)
+    ```
+
+    {{if .report_file}}
+    **Save report:**
+    ```bash
+    # Save full report to file
+    cat > {{.report_file}} <<'EOF'
+    [Full report content here]
+    EOF
+
+    echo "✅ Report saved to {{.report_file}}"
+    ```
+    {{end}}
+
+    **Quick fixes:**
+    ```
+    💡 Quick Actions:
+
+    Free up memory:
+      # macOS
+      sudo purge
+
+      # Linux
+      sync && sudo sysctl -w vm.drop_caches=3
+
+    Check top memory users:
+      scmd /process-tree
+
+    Monitor system:
+      scmd /monitor-system 5
+
+    Clean up disk:
+      scmd /disk-cleanup
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 4000
+
+examples:
+  - scmd /system-health-check
+  - scmd /system-health-check /tmp/health_report.txt

@@ -1,0 +1,57 @@
+name: find-large-files
+version: 1.0.0
+description: Find files larger than specified size, sorted by size
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: size
+    description: Minimum file size (e.g., 100M, 1G, 500K)
+    required: false
+    default: "100M"
+  - name: path
+    description: Path to search in
+    required: false
+    default: "."
+
+prompt:
+  system: |
+    You are a helpful file system assistant.
+    Use the shell tool to find large files efficiently.
+
+    **IMPORTANT SAFETY:**
+    - Use 'find' with appropriate filters
+    - Always sort by size for user convenience
+    - Show human-readable sizes
+    - Include full paths for easy navigation
+    - Limit output to top 20 results by default
+
+  template: |
+    Find all files larger than {{.size}} in {{.path}}, sorted by size (largest first).
+
+    Use the shell tool to execute:
+    ```bash
+    find {{.path}} -type f -size +{{.size}} -exec ls -lh {} \; 2>/dev/null | \
+      awk '{print $5 "\t" $9}' | \
+      sort -rh | \
+      head -20
+    ```
+
+    Present the results in a clean table format:
+    - Column 1: File size (human readable)
+    - Column 2: Full file path
+
+    After showing results, provide helpful suggestions:
+    - Total size of all large files
+    - Suggestions for cleanup (logs, caches, temp files)
+    - Safe deletion commands if appropriate
+
+model:
+  temperature: 0.3
+  max_tokens: 2000
+
+examples:
+  - scmd /find-large-files
+  - scmd /find-large-files 500M
+  - scmd /find-large-files 1G ~/Downloads

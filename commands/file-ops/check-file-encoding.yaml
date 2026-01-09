@@ -1,0 +1,133 @@
+name: check-file-encoding
+version: 1.0.0
+description: Detect file encoding and optionally convert to UTF-8
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: files
+    description: Files to check (glob pattern or specific files)
+    required: true
+  - name: convert_to_utf8
+    description: Convert non-UTF8 files to UTF-8 (true/false)
+    required: false
+    default: "false"
+
+prompt:
+  system: |
+    You are a file encoding expert.
+
+    **COMMON ENCODINGS:**
+    - UTF-8: Universal, most common
+    - UTF-16: Windows, some Microsoft formats
+    - ISO-8859-1 (Latin-1): Western European
+    - Windows-1252: Windows Western
+    - ASCII: Basic English only
+
+    **TOOLS:**
+    - file: Detect file type and encoding
+    - chardet/uchardet: Python/universal charset detection
+    - iconv: Convert between encodings
+
+  template: |
+    Check encoding for files: {{.files}}
+    Convert to UTF-8: {{.convert_to_utf8}}
+
+    Step 1: Find all matching files
+    ```bash
+    find . -name "{{.files}}" -type f
+    ```
+
+    Step 2: Detect encoding for each file
+    Use multiple methods for accuracy:
+    ```bash
+    # Method 1: file command
+    file -b --mime-encoding FILENAME
+
+    # Method 2: if available, use chardet
+    if command -v chardetect &> /dev/null; then
+      chardetect FILENAME
+    fi
+    ```
+
+    Step 3: Present results
+    ```
+    File Encoding Report:
+    ═══════════════════════════════════════
+
+    UTF-8 (5 files):
+    ✓ ./src/main.js
+    ✓ ./docs/README.md
+    ...
+
+    ISO-8859-1 (2 files):
+    ⚠ ./data/legacy.txt
+    ⚠ ./docs/old.html
+
+    Windows-1252 (1 file):
+    ⚠ ./exports/report.csv
+
+    Summary:
+    Total: 8 files
+    UTF-8: 5 files (62.5%)
+    Other: 3 files (37.5%)
+    ```
+
+    {{if eq .convert_to_utf8 "true"}}
+    Step 4: Convert non-UTF8 files
+    For each non-UTF8 file:
+    ```bash
+    # Backup original
+    cp FILENAME FILENAME.bak
+
+    # Convert to UTF-8
+    iconv -f DETECTED_ENCODING -t UTF-8 FILENAME.bak > FILENAME
+
+    # Verify conversion worked
+    file -b --mime-encoding FILENAME
+    ```
+
+    Show conversion results:
+    ```
+    Conversion Results:
+    ═══════════════════════════════════════
+
+    ✅ ./data/legacy.txt
+       ISO-8859-1 → UTF-8
+       Backup: ./data/legacy.txt.bak
+
+    ✅ ./docs/old.html
+       ISO-8859-1 → UTF-8
+       Backup: ./docs/old.html.bak
+
+    ✅ ./exports/report.csv
+       Windows-1252 → UTF-8
+       Backup: ./exports/report.csv.bak
+
+    Converted: 3 files
+    All files now UTF-8 ✓
+    ```
+
+    Provide rollback instructions:
+    ```bash
+    # To restore original files:
+    for file in *.bak; do
+      mv "$file" "${file%.bak}"
+    done
+    ```
+    {{end}}
+
+    Additional tips:
+    - UTF-8 is recommended for cross-platform compatibility
+    - Some editors may need to be configured to save as UTF-8
+    - BOM (Byte Order Mark) can cause issues - suggest removing if present
+
+model:
+  temperature: 0.3
+  max_tokens: 2500
+
+examples:
+  - scmd /check-file-encoding "*.txt"
+  - scmd /check-file-encoding "*.csv" true
+  - scmd /check-file-encoding "docs/*.md" false

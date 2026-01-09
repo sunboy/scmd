@@ -1,0 +1,139 @@
+name: analyze-logs
+version: 1.0.0
+description: Search and analyze log files for errors, patterns, anomalies
+category: system
+author: scmd team
+license: MIT
+
+args:
+  - name: log_file
+    description: Log file path or pattern (e.g., /var/log/system.log, *.log)
+    required: true
+  - name: search
+    description: What to search for (error, warning, pattern, timeline)
+    required: false
+    default: "error"
+  - name: time_range
+    description: Time range (e.g., "last 1h", "today", "2024-01-09")
+    required: false
+
+prompt:
+  system: |
+    You are a log analysis expert.
+    Find errors, patterns, and anomalies in log files.
+
+  template: |
+    Analyze {{.log_file}} for {{.search}}{{if .time_range}} in {{.time_range}}{{end}}.
+
+    **Find log files:**
+    ```bash
+    find /var/log -name "{{.log_file}}" -type f 2>/dev/null
+    # Also check common locations
+    ls -lh {{.log_file}} 2>/dev/null
+    ```
+
+    Based on {{.search}}:
+
+    **errors:**
+    ```bash
+    grep -i "error\|fail\|exception\|critical" {{.log_file}} | tail -50
+    ```
+
+    **warnings:**
+    ```bash
+    grep -i "warn\|warning" {{.log_file}} | tail -50
+    ```
+
+    **pattern:**
+    ```bash
+    grep "{{.search}}" {{.log_file}}
+    ```
+
+    **timeline:**
+    ```bash
+    # Show log activity timeline
+    awk '{print $1, $2, $3}' {{.log_file}} | uniq -c
+    ```
+
+    {{if .time_range}}
+    **Filter by time:**
+    ```bash
+    # Parse time range and filter logs
+    # Example for "last 1h":
+    since_time=$(date -d '1 hour ago' '+%Y-%m-%d %H:%M:%S')
+    awk -v since="$since_time" '$0 >= since' {{.log_file}}
+    ```
+    {{end}}
+
+    **Present analysis:**
+    ```
+    Log Analysis: {{.log_file}}
+    ═══════════════════════════════════════
+
+    File size: 12.5 MB
+    Lines:     45,230
+    Period:    2024-01-08 to 2024-01-09
+
+    Error Summary:
+    ─────────────────────────────────────
+    Total errors:    23
+    Critical:        3  ⚠️
+    Error:          15
+    Warning:         5
+
+    Top Errors:
+    1. Connection timeout (8 occurrences)
+       Last seen: 2024-01-09 10:15:32
+
+    2. Database connection failed (5 occurrences)
+       Last seen: 2024-01-09 09:45:12
+
+    3. Out of memory (3 occurrences)
+       Last seen: 2024-01-09 08:30:45
+
+    Recent Errors (last 10):
+    ─────────────────────────────────────
+    2024-01-09 10:15:32 [ERROR] Connection timeout to api.example.com
+    2024-01-09 10:12:15 [ERROR] Failed to process request: invalid token
+    ...
+
+    Patterns Detected:
+    • Spike in errors between 09:00-10:00 (18 errors)
+    • Repeated "Connection timeout" every 5 minutes
+    • Memory warnings preceding crashes
+    ```
+
+    **Suggested actions:**
+    ```
+    💡 Recommendations:
+
+    1. Connection timeouts (8x):
+       - Check network connectivity
+       - Verify API endpoint is responding
+       - Consider increasing timeout values
+
+    2. Database errors (5x):
+       - Check database service status
+       - Verify connection pool settings
+       - Review database logs
+
+    3. Memory issues (3x):
+       - Monitor memory usage: scmd /monitor-system
+       - Consider increasing memory limits
+       - Check for memory leaks
+    ```
+
+    **Export findings:**
+    ```bash
+    # Save error report
+    grep -i "error" {{.log_file}} > error_report_$(date +%Y%m%d).txt
+    ```
+
+model:
+  temperature: 0.4
+  max_tokens: 3000
+
+examples:
+  - scmd /analyze-logs /var/log/system.log
+  - scmd /analyze-logs "*.log" error
+  - scmd /analyze-logs app.log warning "last 1h"

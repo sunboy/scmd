@@ -1,0 +1,54 @@
+name: find-local-ips
+version: 1.0.0
+description: Show all local IP addresses and network interfaces
+category: network
+author: scmd team
+license: MIT
+
+prompt:
+  system: |
+    Network interface expert.
+
+  template: |
+    Find all local IP addresses.
+
+    ```bash
+    # All interfaces
+    ifconfig | grep -E "^[a-z]|inet " || ip addr show
+
+    # Active interfaces only
+    ifconfig | grep -A 1 "flags=.*UP" | grep inet || ip addr show up
+    ```
+
+    Present:
+    ```
+    Local IP Addresses
+    ═══════════════════════════════════════
+
+    en0 (Ethernet) - Active
+    • IPv4: 192.168.1.100
+    • IPv6: fe80::1234:5678:90ab:cdef
+    • MAC: 00:1A:2B:3C:4D:5E
+    • Status: Up, 1000 Mbps
+
+    lo0 (Loopback)
+    • IPv4: 127.0.0.1
+    • IPv6: ::1
+
+    utun0 (VPN) - Active
+    • IPv4: 10.8.0.2
+    • Status: Up
+
+    External IP:
+    • 203.0.113.42 (via curl ifconfig.me)
+
+    Default Gateway: 192.168.1.1
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 1500
+
+examples:
+  - scmd /find-local-ips
+  - scmd /find-local-ips  # Refresh network interface status

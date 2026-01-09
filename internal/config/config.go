@@ -2,16 +2,18 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
 
 // Config represents scmd configuration
 type Config struct {
-	Version  string         `mapstructure:"version"`
-	Backends BackendsConfig `mapstructure:"backends"`
-	UI       UIConfig       `mapstructure:"ui"`
-	Models   ModelsConfig   `mapstructure:"models"`
+	Version        string         `mapstructure:"version"`
+	Backends       BackendsConfig `mapstructure:"backends"`
+	UI             UIConfig       `mapstructure:"ui"`
+	Models         ModelsConfig   `mapstructure:"models"`
+	SetupCompleted bool           `mapstructure:"setup_completed"`
 }
 
 // BackendsConfig for LLM backends
@@ -78,6 +80,8 @@ func (c *Config) GetBool(key string) bool {
 		return c.UI.Verbose
 	case "models.auto_download":
 		return c.Models.AutoDownload
+	case "setup_completed":
+		return c.SetupCompleted
 	default:
 		return false
 	}
@@ -94,5 +98,61 @@ func (c *Config) GetInt(key string) int {
 		return c.Backends.Local.Threads
 	default:
 		return 0
+	}
+}
+
+// Set sets a configuration value
+func (c *Config) Set(key string, value interface{}) error {
+	switch key {
+	case "backends.default":
+		if v, ok := value.(string); ok {
+			c.Backends.Default = v
+			return nil
+		}
+		return fmt.Errorf("value must be a string")
+	case "backends.local.model":
+		if v, ok := value.(string); ok {
+			c.Backends.Local.Model = v
+			return nil
+		}
+		return fmt.Errorf("value must be a string")
+	case "backends.local.context_length":
+		if v, ok := value.(int); ok {
+			c.Backends.Local.ContextLength = v
+			return nil
+		}
+		return fmt.Errorf("value must be an integer")
+	case "ui.streaming":
+		if v, ok := value.(bool); ok {
+			c.UI.Streaming = v
+			return nil
+		}
+		return fmt.Errorf("value must be a boolean")
+	case "ui.colors":
+		if v, ok := value.(bool); ok {
+			c.UI.Colors = v
+			return nil
+		}
+		return fmt.Errorf("value must be a boolean")
+	case "ui.verbose":
+		if v, ok := value.(bool); ok {
+			c.UI.Verbose = v
+			return nil
+		}
+		return fmt.Errorf("value must be a boolean")
+	case "models.auto_download":
+		if v, ok := value.(bool); ok {
+			c.Models.AutoDownload = v
+			return nil
+		}
+		return fmt.Errorf("value must be a boolean")
+	case "setup_completed":
+		if v, ok := value.(bool); ok {
+			c.SetupCompleted = v
+			return nil
+		}
+		return fmt.Errorf("value must be a boolean")
+	default:
+		return fmt.Errorf("unknown configuration key: %s", key)
 	}
 }

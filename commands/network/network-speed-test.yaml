@@ -1,0 +1,52 @@
+name: network-speed-test
+version: 1.0.0
+description: Test download/upload speed and latency
+category: network
+author: scmd team
+license: MIT
+
+args: []
+
+prompt:
+  system: |
+    Network speed testing expert.
+
+  template: |
+    Test network speed.
+
+    ```bash
+    # Check if speedtest-cli is installed
+    if command -v speedtest-cli &> /dev/null; then
+      speedtest-cli
+    elif command -v speedtest &> /dev/null; then
+      speedtest
+    else
+      echo "Install: pip install speedtest-cli"
+      # Fallback: curl test
+      echo "Testing with curl..."
+      curl -w "Download: %{speed_download} bytes/sec\n" -o /dev/null -s http://speedtest.tele2.net/10MB.zip
+    fi
+    ```
+
+    Present:
+    ```
+    Network Speed Test
+    ═══════════════════════════════════════
+
+    Server: Speedtest.net (New York)
+    ISP: Example ISP
+
+    Download: 125.3 Mbps  ▓▓▓▓▓▓▓▓░░
+    Upload:    45.2 Mbps  ▓▓▓░░░░░░░
+    Ping:      12 ms
+
+    Result: ✅ Good connection
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 1500
+
+examples:
+  - scmd /network-speed-test
+  - scmd /network-speed-test  # Run multiple times for average speed

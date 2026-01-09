@@ -1,0 +1,129 @@
+name: git-find-commit
+version: 1.0.0
+description: Search commits by message, author, date, file, or content
+category: git
+author: scmd team
+license: MIT
+
+args:
+  - name: search_type
+    description: What to search (message, author, date, file, content)
+    required: true
+  - name: query
+    description: Search query
+    required: true
+  - name: limit
+    description: Maximum results to show
+    required: false
+    default: "20"
+
+prompt:
+  system: |
+    You are a Git history search expert.
+
+    **SEARCH CAPABILITIES:**
+    - message: Search commit messages (case-insensitive)
+    - author: Find commits by author name or email
+    - date: Find commits in date range
+    - file: Find commits that modified specific file
+    - content: Find commits that added/removed specific code
+
+    Present results with context, not just hashes.
+
+  template: |
+    Search commits by {{.search_type}}: "{{.query}}" (limit: {{.limit}})
+
+    Based on {{.search_type}}, use appropriate git command:
+
+    **message:**
+    ```bash
+    git log --all --grep="{{.query}}" --oneline -{{.limit}}
+    ```
+    With details:
+    ```bash
+    git log --all --grep="{{.query}}" -{{.limit}} \
+      --pretty=format:"%h - %an, %ar : %s"
+    ```
+
+    **author:**
+    ```bash
+    git log --all --author="{{.query}}" -{{.limit}} \
+      --pretty=format:"%h - %ad - %s" --date=short
+    ```
+
+    **date:**
+    Parse {{.query}} (formats: YYYY-MM-DD, "last week", "2 months ago")
+    ```bash
+    git log --all --since="{{.query}}" -{{.limit}} \
+      --pretty=format:"%h - %an - %ad : %s" --date=short
+    ```
+
+    **file:**
+    ```bash
+    git log --all --follow --oneline -{{.limit}} -- {{.query}}
+    ```
+    With details:
+    ```bash
+    git log --all --follow -{{.limit}} -- {{.query}} \
+      --pretty=format:"%h - %an, %ar : %s" \
+      --stat
+    ```
+
+    **content:**
+    Search for commits that added or removed specific code
+    ```bash
+    git log --all -S"{{.query}}" --source --all -{{.limit}} \
+      --pretty=format:"%h - %an, %ar : %s"
+    ```
+
+    Present results in formatted table:
+    ```
+    Search Results: {{.search_type}} = "{{.query}}"
+    ═══════════════════════════════════════
+
+    1. a1b2c3d - John Doe, 2 days ago
+       Fix critical bug in authentication
+
+       Files changed: auth.go, middleware.go
+       +15 -8 lines
+
+    2. d4e5f6g - Jane Smith, 1 week ago
+       Add new feature for user profiles
+
+       Files changed: user.go, profile.go, api.go
+       +127 -12 lines
+
+    ...
+
+    Total: 12 commits found
+    ```
+
+    For each result, provide:
+    - Commit hash (short)
+    - Author and date
+    - Commit message
+    - Files changed (if relevant)
+    - Diff stats
+
+    Additional commands for more details:
+    ```bash
+    # View full commit details:
+    git show COMMIT_HASH
+
+    # View file at that commit:
+    git show COMMIT_HASH:path/to/file
+
+    # Compare with current:
+    git diff COMMIT_HASH HEAD
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 3000
+
+examples:
+  - scmd /git-find-commit message "fix bug"
+  - scmd /git-find-commit author "john@example.com"
+  - scmd /git-find-commit date "last week"
+  - scmd /git-find-commit file "src/main.go"
+  - scmd /git-find-commit content "function oldName"

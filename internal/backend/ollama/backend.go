@@ -107,11 +107,11 @@ func (b *Backend) Shutdown(_ context.Context) error {
 
 // generateRequest is the Ollama generate API request
 type generateRequest struct {
-	Model    string         `json:"model"`
-	Prompt   string         `json:"prompt"`
-	System   string         `json:"system,omitempty"`
-	Stream   bool           `json:"stream"`
-	Options  map[string]any `json:"options,omitempty"`
+	Model   string         `json:"model"`
+	Prompt  string         `json:"prompt"`
+	System  string         `json:"system,omitempty"`
+	Stream  bool           `json:"stream"`
+	Options map[string]any `json:"options,omitempty"`
 }
 
 // generateResponse is the Ollama generate API response

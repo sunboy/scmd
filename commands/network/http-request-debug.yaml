@@ -1,0 +1,63 @@
+name: http-request-debug
+version: 1.0.0
+description: Debug HTTP requests with headers, timing, and response details
+category: network
+author: scmd team
+license: MIT
+
+args:
+  - name: url
+    description: URL to test
+    required: true
+  - name: method
+    description: HTTP method
+    required: false
+    default: "GET"
+
+prompt:
+  system: |
+    HTTP debugging expert.
+
+  template: |
+    Debug {{.method}} request to {{.url}}.
+
+    ```bash
+    curl -v -X {{.method}} \
+      -w "\n\nTiming:\n  DNS: %{time_namelookup}s\n  Connect: %{time_connect}s\n  TLS: %{time_appconnect}s\n  TTFB: %{time_starttransfer}s\n  Total: %{time_total}s\n" \
+      -o /tmp/response_body.txt \
+      {{.url}} 2>&1
+    ```
+
+    Present:
+    ```
+    HTTP Request Debug: {{.url}}
+    ═══════════════════════════════════════
+
+    Request:
+    {{.method}} {{.url}}
+    User-Agent: curl/7.68.0
+
+    Response:
+    Status: 200 OK
+    Content-Type: application/json
+    Content-Length: 1234
+    Server: nginx/1.18.0
+
+    Timing:
+    DNS lookup:    0.012s
+    TCP connect:   0.025s
+    TLS handshake: 0.089s
+    TTFB:          0.234s
+    Total:         0.567s
+
+    Body preview:
+    {"status": "success", ...}
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 2000
+
+examples:
+  - scmd /http-request-debug https://api.example.com
+  - scmd /http-request-debug https://example.com POST

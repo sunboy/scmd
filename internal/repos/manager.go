@@ -67,18 +67,18 @@ type CommandSpec struct {
 	Metadata    map[string]string `yaml:"metadata,omitempty" json:"metadata,omitempty"`
 
 	// Enhanced features
-	Dependencies []Dependency   `yaml:"dependencies,omitempty" json:"dependencies,omitempty"`
-	Compose      *ComposeSpec   `yaml:"compose,omitempty" json:"compose,omitempty"`
-	Hooks        *HooksSpec     `yaml:"hooks,omitempty" json:"hooks,omitempty"`
-	Inputs       []InputSpec    `yaml:"inputs,omitempty" json:"inputs,omitempty"`
-	Outputs      *OutputSpec    `yaml:"outputs,omitempty" json:"outputs,omitempty"`
-	Context      *ContextSpec   `yaml:"context,omitempty" json:"context,omitempty"`
+	Dependencies []Dependency `yaml:"dependencies,omitempty" json:"dependencies,omitempty"`
+	Compose      *ComposeSpec `yaml:"compose,omitempty" json:"compose,omitempty"`
+	Hooks        *HooksSpec   `yaml:"hooks,omitempty" json:"hooks,omitempty"`
+	Inputs       []InputSpec  `yaml:"inputs,omitempty" json:"inputs,omitempty"`
+	Outputs      *OutputSpec  `yaml:"outputs,omitempty" json:"outputs,omitempty"`
+	Context      *ContextSpec `yaml:"context,omitempty" json:"context,omitempty"`
 }
 
 // Dependency defines a command dependency
 type Dependency struct {
-	Command     string `yaml:"command" json:"command"`                           // e.g., "official/explain"
-	Version     string `yaml:"version,omitempty" json:"version,omitempty"`       // e.g., ">=1.0.0"
+	Command     string `yaml:"command" json:"command"`                     // e.g., "official/explain"
+	Version     string `yaml:"version,omitempty" json:"version,omitempty"` // e.g., ">=1.0.0"
 	Optional    bool   `yaml:"optional,omitempty" json:"optional,omitempty"`
 	Description string `yaml:"description,omitempty" json:"description,omitempty"`
 }
@@ -133,9 +133,9 @@ type OutputSpec struct {
 
 // ContextSpec defines context requirements
 type ContextSpec struct {
-	Files     []string `yaml:"files,omitempty" json:"files,omitempty"`         // File patterns to include
-	Git       bool     `yaml:"git,omitempty" json:"git,omitempty"`             // Include git context
-	Env       []string `yaml:"env,omitempty" json:"env,omitempty"`             // Environment variables
+	Files     []string `yaml:"files,omitempty" json:"files,omitempty"`           // File patterns to include
+	Git       bool     `yaml:"git,omitempty" json:"git,omitempty"`               // Include git context
+	Env       []string `yaml:"env,omitempty" json:"env,omitempty"`               // Environment variables
 	MaxTokens int      `yaml:"max_tokens,omitempty" json:"max_tokens,omitempty"` // Max context tokens
 }
 

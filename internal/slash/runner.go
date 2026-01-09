@@ -18,11 +18,11 @@ import (
 // SlashCommand represents a configured slash command
 type SlashCommand struct {
 	Name        string   `yaml:"name"`
-	Command     string   `yaml:"command"`     // The actual command to run (e.g., "git-commit")
-	Aliases     []string `yaml:"aliases"`     // Short aliases (e.g., ["gc", "gitc"])
+	Command     string   `yaml:"command"` // The actual command to run (e.g., "git-commit")
+	Aliases     []string `yaml:"aliases"` // Short aliases (e.g., ["gc", "gitc"])
 	Description string   `yaml:"description"`
-	Args        string   `yaml:"args"`        // Default args to pass
-	Stdin       bool     `yaml:"stdin"`       // Whether to read stdin
+	Args        string   `yaml:"args"`  // Default args to pass
+	Stdin       bool     `yaml:"stdin"` // Whether to read stdin
 }
 
 // Config holds all slash command configurations
@@ -144,6 +144,13 @@ func defaultConfig() *Config {
 				Description: "Explain and fix errors",
 				Stdin:       true,
 			},
+			{
+				Name:        "cmd",
+				Command:     "cmd",
+				Aliases:     []string{"command", "howto"},
+				Description: "Generate CLI commands from questions",
+				Stdin:       false,
+			},
 		},
 	}
 }
@@ -247,9 +254,9 @@ func (r *Runner) Run(ctx context.Context, slashCmd *SlashCommand, args []string,
 // simpleUI implements command.UI with minimal output
 type simpleUI struct{}
 
-func (u *simpleUI) Write(s string)      { fmt.Print(s) }
-func (u *simpleUI) WriteLine(s string)  { fmt.Println(s) }
-func (u *simpleUI) WriteError(s string) { fmt.Fprintln(os.Stderr, s) }
+func (u *simpleUI) Write(s string)             { fmt.Print(s) }
+func (u *simpleUI) WriteLine(s string)         { fmt.Println(s) }
+func (u *simpleUI) WriteError(s string)        { fmt.Fprintln(os.Stderr, s) }
 func (u *simpleUI) Confirm(prompt string) bool { return true }
 func (u *simpleUI) Spinner(message string) func() {
 	// No-op spinner for non-interactive use

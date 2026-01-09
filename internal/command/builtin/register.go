@@ -14,6 +14,7 @@ func RegisterAll(registry *command.Registry) error {
 		NewExplainCommand(),
 		NewReviewCommand(),
 		NewConfigCommand(),
+		NewCmdCommand(),
 		&KillProcessCmd{},
 	}
 

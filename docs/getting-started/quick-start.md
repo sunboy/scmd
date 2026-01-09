@@ -11,7 +11,7 @@ Type `/explain` to explain code or concepts:
 ```
 
 !!! note "First Run"
-    On first run, scmd will download the default qwen3-4b model (~2.6GB). This takes a few minutes but only happens once.
+    On first run, scmd will download the default qwen2.5-1.5b model (~1.0GB). This takes 2-5 minutes depending on your connection, but only happens once.
 
 Output:
 ```
@@ -236,7 +236,7 @@ SCMD_DEBUG=1 ./scmd /explain "what is Docker?"
 
 Output:
 ```
-[DEBUG] Model path: /Users/you/.scmd/models/qwen3-4b-Q4_K_M.gguf
+[DEBUG] Model path: /Users/you/.scmd/models/qwen2.5-1.5b-q4_k_m.gguf
 [DEBUG] Prompt length: 156 chars
 [DEBUG] Sending request to http://127.0.0.1:8089/completion
 [DEBUG] Response status: 200
@@ -276,11 +276,11 @@ llama-server --help | grep -E "metal|cuda"
 
 | Model | Size | Speed (tokens/sec) | Best For |
 |-------|------|-------------------|----------|
-| qwen2.5-0.5b | 379 MB | ~50 (GPU), ~10 (CPU) | Quick summaries |
-| qwen2.5-1.5b | 940 MB | ~30 (GPU), ~7 (CPU) | Fast queries |
-| qwen2.5-3b | 1.9 GB | ~20 (GPU), ~5 (CPU) | Balanced |
-| qwen3-4b ⭐ | 2.5 GB | ~15 (GPU), ~4 (CPU) | Default, best quality |
-| qwen2.5-7b | 4.4 GB | ~10 (GPU), ~2 (CPU) | Complex tasks |
+| qwen2.5-0.5b | 379 MB | ~60 (GPU), ~15 (CPU) | Quick summaries |
+| qwen2.5-1.5b ⭐ | 940 MB | ~40 (GPU), ~10 (CPU) | Default (fast, lightweight) |
+| qwen2.5-3b | 1.9 GB | ~25 (GPU), ~7 (CPU) | Balanced |
+| qwen3-4b | 2.5 GB | ~20 (GPU), ~5 (CPU) | Alternative (tool calling) |
+| qwen2.5-7b | 4.4 GB | ~12 (GPU), ~3 (CPU) | Complex tasks |
 
 ## Workflow Examples
 
@@ -382,7 +382,7 @@ Review: Simple code. Consider using x++ instead of x = x + 1
 scmd models list
 
 # Download missing model
-scmd models pull qwen3-4b
+scmd models pull qwen2.5-1.5b
 ```
 
 ### Command Not Found

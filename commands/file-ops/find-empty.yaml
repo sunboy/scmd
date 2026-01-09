@@ -1,0 +1,83 @@
+name: find-empty
+version: 1.0.0
+description: Find and optionally delete empty files and directories
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: path
+    description: Path to search
+    required: false
+    default: "."
+  - name: type
+    description: What to find (files, dirs, both)
+    required: false
+    default: "both"
+
+prompt:
+  system: |
+    You are a file cleanup expert helping users find empty files and directories.
+
+    **SAFETY:**
+    - List all empty items first before offering deletion
+    - Warn about potentially important empty files (.gitkeep, __init__.py)
+    - Never auto-delete without confirmation
+    - Provide safe deletion commands
+    - Show what empty directories might indicate (deleted content, cache dirs)
+
+  template: |
+    Find empty {{.type}} in {{.path}}.
+
+    Use the shell tool to execute:
+
+    1. Find empty files:
+    ```bash
+    find {{.path}} -type f -empty
+    ```
+
+    2. Find empty directories:
+    ```bash
+    find {{.path}} -type d -empty
+    ```
+
+    Present results grouped by type:
+    ```
+    Empty Files (12):
+    • ./test/fixtures/empty.txt
+    • ./logs/old.log
+    • ./temp/placeholder
+    ...
+
+    Empty Directories (5):
+    • ./build/artifacts
+    • ./temp/cache
+    ...
+    ```
+
+    Check for important empty files:
+    - .gitkeep (intentionally empty, keeps directory in git)
+    - __init__.py (Python package marker)
+    - .placeholder files
+
+    Calculate space that could be freed (usually minimal for empty files).
+
+    Ask for confirmation before providing deletion commands.
+
+    Safe deletion:
+    ```bash
+    # For files (excluding important ones)
+    find {{.path}} -type f -empty ! -name '.gitkeep' ! -name '__init__.py' -delete
+
+    # For directories (careful with nested empties)
+    find {{.path}} -type d -empty -delete
+    ```
+
+model:
+  temperature: 0.3
+  max_tokens: 2000
+
+examples:
+  - scmd /find-empty
+  - scmd /find-empty ~/projects files
+  - scmd /find-empty . dirs

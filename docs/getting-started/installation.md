@@ -263,14 +263,14 @@ Expected output:
 ```
 Available backends:
 
-✓ llamacpp     qwen3-4b
+✓ llamacpp     qwen2.5-1.5b
 ✗ ollama       (not running)
 ✗ openai       (not configured)
 ```
 
 ### 2. First Run (Model Download)
 
-On first use, scmd will automatically download the default model (~2.6GB):
+On first use, scmd will automatically download the default model (~1.0GB):
 
 ```bash
 scmd /explain "what is a channel in Go?"
@@ -279,9 +279,9 @@ scmd /explain "what is a channel in Go?"
 Output:
 ```
 [INFO] First run detected
-[INFO] Downloading qwen3-4b model (2.6 GB)...
+[INFO] Downloading qwen2.5-1.5b model (1.0 GB)...
 [INFO] Progress: ████████████████████ 100%
-[INFO] Model downloaded to ~/.scmd/models/qwen3-4b-Q4_K_M.gguf
+[INFO] Model downloaded to ~/.scmd/models/qwen2.5-1.5b-q4_k_m.gguf
 [INFO] Starting llama-server...
 
 A channel in Go is a typed conduit through which you can send
@@ -342,8 +342,8 @@ scmd uses the following directory structure:
 ├── slash.yaml           # Slash command mappings
 ├── repos.json           # Repository list
 ├── models/              # Downloaded GGUF models
-│   ├── qwen3-4b-Q4_K_M.gguf
-│   └── qwen2.5-3b-Q4_K_M.gguf
+│   ├── qwen2.5-1.5b-q4_k_m.gguf
+│   └── qwen2.5-3b-q4_k_m.gguf
 ├── commands/            # Installed command specs
 │   ├── git-commit.yaml
 │   └── explain.yaml
@@ -497,10 +497,10 @@ eval "$(/opt/homebrew/bin/brew shellenv)"
 curl -I https://huggingface.co
 
 # Manually download model
-scmd models pull qwen3-4b
-
-# Use smaller model
 scmd models pull qwen2.5-1.5b
+
+# Use alternative model
+scmd models pull qwen3-4b
 ```
 
 #### Permission denied

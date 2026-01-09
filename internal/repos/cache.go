@@ -1,6 +1,7 @@
 package repos
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -20,11 +21,11 @@ type Cache struct {
 
 // CacheManifest tracks cached items
 type CacheManifest struct {
-	Version    string                 `json:"version"`
-	UpdatedAt  time.Time              `json:"updated_at"`
-	Repos      map[string]CachedRepo  `json:"repos"`
-	Commands   map[string]CachedCmd   `json:"commands"`
-	Manifests  map[string]CachedItem  `json:"manifests"`
+	Version   string                `json:"version"`
+	UpdatedAt time.Time             `json:"updated_at"`
+	Repos     map[string]CachedRepo `json:"repos"`
+	Commands  map[string]CachedCmd  `json:"commands"`
+	Manifests map[string]CachedItem `json:"manifests"`
 }
 
 // CachedRepo tracks a cached repository
@@ -38,13 +39,13 @@ type CachedRepo struct {
 
 // CachedCmd tracks a cached command
 type CachedCmd struct {
-	Repo         string    `json:"repo"`
-	Version      string    `json:"version"`
-	Hash         string    `json:"hash"`
-	CachedAt     time.Time `json:"cached_at"`
-	InstalledAt  time.Time `json:"installed_at,omitempty"`
-	UpdateAvail  bool      `json:"update_available,omitempty"`
-	LatestVer    string    `json:"latest_version,omitempty"`
+	Repo        string    `json:"repo"`
+	Version     string    `json:"version"`
+	Hash        string    `json:"hash"`
+	CachedAt    time.Time `json:"cached_at"`
+	InstalledAt time.Time `json:"installed_at,omitempty"`
+	UpdateAvail bool      `json:"update_available,omitempty"`
+	LatestVer   string    `json:"latest_version,omitempty"`
 }
 
 // CachedItem is a generic cached item
@@ -280,10 +281,10 @@ func (c *Cache) CheckUpdates(getLatestVersion func(repo, name string) (string, e
 			c.manifest.Commands[key] = cmd
 
 			updates = append(updates, UpdateInfo{
-				Repo:       repo,
-				Command:    name,
-				Current:    cmd.Version,
-				Latest:     latest,
+				Repo:        repo,
+				Command:     name,
+				Current:     cmd.Version,
+				Latest:      latest,
 				InstalledAt: cmd.InstalledAt,
 			})
 		}
@@ -334,11 +335,11 @@ func (c *Cache) Stats() CacheStats {
 	}
 
 	return CacheStats{
-		CachedRepos:    len(c.manifest.Repos),
-		CachedCommands: len(c.manifest.Commands),
-		CachedManifests: len(c.manifest.Manifests),
+		CachedRepos:       len(c.manifest.Repos),
+		CachedCommands:    len(c.manifest.Commands),
+		CachedManifests:   len(c.manifest.Manifests),
 		InstalledCommands: installedCount,
-		LastUpdated:    c.manifest.UpdatedAt,
+		LastUpdated:       c.manifest.UpdatedAt,
 	}
 }
 
@@ -363,9 +364,9 @@ func hashData(data []byte) string {
 
 // Lockfile represents a lockfile for reproducible installations
 type Lockfile struct {
-	Version   string         `json:"version"`
-	Generated time.Time      `json:"generated"`
-	Commands  []LockedCmd    `json:"commands"`
+	Version   string      `json:"version"`
+	Generated time.Time   `json:"generated"`
+	Commands  []LockedCmd `json:"commands"`
 }
 
 // LockedCmd is a locked command version
@@ -438,7 +439,7 @@ func LoadLockfile(path string) (*Lockfile, error) {
 }
 
 // InstallFromLockfile installs commands from a lockfile
-func (m *Manager) InstallFromLockfile(lf *Lockfile, installDir string) error {
+func (m *Manager) InstallFromLockfile(ctx context.Context, lf *Lockfile, installDir string) error {
 	for _, cmd := range lf.Commands {
 		repo, ok := m.Get(cmd.Repo)
 		if !ok {
@@ -454,7 +455,7 @@ func (m *Manager) InstallFromLockfile(lf *Lockfile, installDir string) error {
 		}
 
 		// Find the command file
-		manifest, err := m.FetchManifest(nil, repo)
+		manifest, err := m.FetchManifest(ctx, repo)
 		if err != nil {
 			return fmt.Errorf("fetch manifest for %s: %w", cmd.Repo, err)
 		}
@@ -471,7 +472,7 @@ func (m *Manager) InstallFromLockfile(lf *Lockfile, installDir string) error {
 			return fmt.Errorf("command %s not found in %s", cmd.Name, cmd.Repo)
 		}
 
-		spec, err := m.FetchCommand(nil, repo, cmdFile)
+		spec, err := m.FetchCommand(ctx, repo, cmdFile)
 		if err != nil {
 			return fmt.Errorf("fetch command %s: %w", cmd.Name, err)
 		}

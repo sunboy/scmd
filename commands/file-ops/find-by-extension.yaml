@@ -1,0 +1,114 @@
+name: find-by-extension
+version: 1.0.0
+description: Find all files by extension and show statistics
+category: file-ops
+author: scmd team
+license: MIT
+
+args:
+  - name: extensions
+    description: File extensions to find (comma-separated, e.g., js,ts,jsx)
+    required: true
+  - name: path
+    description: Path to search
+    required: false
+    default: "."
+
+prompt:
+  system: |
+    You are a file analysis expert helping users understand their codebase composition.
+
+    **FEATURES:**
+    - Find all files with specified extensions
+    - Count files per extension
+    - Calculate total size per extension
+    - Show largest files for each extension
+    - Provide directory distribution
+    - Calculate lines of code (for text files)
+
+  template: |
+    Find files with extensions: {{.extensions}} in {{.path}}.
+
+    Parse extensions (split by comma): {{.extensions}}
+
+    For each extension, use the shell tool to:
+
+    1. Find all files
+    ```bash
+    find {{.path}} -type f -name "*.EXT"
+    ```
+
+    2. Count files
+    ```bash
+    find {{.path}} -type f -name "*.EXT" | wc -l
+    ```
+
+    3. Calculate total size
+    ```bash
+    find {{.path}} -type f -name "*.EXT" -exec ls -l {} \; | \
+      awk '{sum+=$5} END {print sum/1024/1024 " MB"}'
+    ```
+
+    4. Find largest files
+    ```bash
+    find {{.path}} -type f -name "*.EXT" -exec ls -lh {} \; | \
+      sort -k5 -rh | head -5
+    ```
+
+    5. For text files, count lines
+    ```bash
+    find {{.path}} -type f -name "*.EXT" -exec wc -l {} \; | \
+      awk '{sum+=$1} END {print sum " lines"}'
+    ```
+
+    6. Show directory distribution
+    ```bash
+    find {{.path}} -type f -name "*.EXT" -printf '%h\n' | \
+      sort | uniq -c | sort -rn | head -10
+    ```
+
+    Present comprehensive report:
+    ```
+    File Analysis Report: {{.extensions}}
+    ═══════════════════════════════════════
+
+    .js Files:
+    Count:     245 files
+    Size:      12.5 MB
+    Lines:     45,230
+    Avg Size:  52 KB
+    Largest:
+      1. main.bundle.js (2.1 MB)
+      2. vendor.js (890 KB)
+      ...
+
+    .ts Files:
+    Count:     189 files
+    Size:      8.3 MB
+    Lines:     32,190
+    ...
+
+    Top Directories:
+    1. ./src/components (89 files)
+    2. ./src/utils (45 files)
+    ...
+
+    Summary:
+    Total Files: 434
+    Total Size:  20.8 MB
+    Total Lines: 77,420
+    ```
+
+    Provide insights:
+    - Which extension dominates
+    - Suggestions for organization
+    - Potential cleanup targets
+
+model:
+  temperature: 0.4
+  max_tokens: 3000
+
+examples:
+  - scmd /find-by-extension js,ts,jsx,tsx
+  - scmd /find-by-extension py ~/projects
+  - scmd /find-by-extension log,txt ./logs

@@ -45,3 +45,26 @@ npm/tmp/
 *.rpm
 *.apk
 checksums.txt
+
+# Brand/Marketing materials (not core to SCMD functionality)
+brand-distribution-packet/
+
+# Internal reports and analysis
+*_REPORT.md
+*_ANALYSIS.md
+*_SUMMARY.md
+*_CRITERIA.md
+*_MATRIX.md
+*_CANDIDATES.md
+BENCHMARK_*.md
+MODEL_*.md
+QA_*.md
+PERFORMANCE_*.md
+RELEASE_NOTES_*.md
+A_PLUS_GRADE_REPORT.md
+
+# Lock files (unless needed for your workflow)
+scmd.lock
+
+# Claude Code configuration (user-specific)
+.claude/

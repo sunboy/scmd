@@ -1,0 +1,180 @@
+name: disk-cleanup
+version: 1.0.0
+description: Find and remove caches, temp files, old logs to free up space
+category: system
+author: scmd team
+license: MIT
+
+args:
+  - name: aggressive
+    description: Aggressive mode (removes more, use with caution)
+    required: false
+    default: "false"
+  - name: dry_run
+    description: Show what would be deleted without deleting
+    required: false
+    default: "true"
+
+prompt:
+  system: |
+    You are a disk cleanup expert.
+    Help users safely free up disk space.
+
+    SAFETY: Always show what will be deleted first.
+
+  template: |
+    Disk cleanup (aggressive: {{.aggressive}}, dry-run: {{.dry_run}}).
+
+    **Scan for cleanup targets:**
+
+    1. **Temporary files:**
+    ```bash
+    # User temp
+    du -sh /tmp
+    find /tmp -type f -atime +7  # Older than 7 days
+
+    # macOS cache
+    du -sh ~/Library/Caches
+    ```
+
+    2. **Log files:**
+    ```bash
+    # Old logs
+    find /var/log -name "*.log.*" -mtime +30
+    find ~/.npm/_logs -type f
+    ```
+
+    3. **Package manager caches:**
+    ```bash
+    # Homebrew (macOS)
+    du -sh $(brew --cache)
+
+    # npm
+    du -sh ~/.npm
+
+    # Docker
+    docker system df
+    ```
+
+    4. **Build artifacts:**
+    ```bash
+    find ~ -name node_modules -type d
+    find ~ -name target -type d  # Rust/Java
+    find ~ -name __pycache__ -type d
+    ```
+
+    {{if eq .aggressive "true"}}
+    5. **Additional (aggressive):**
+    ```bash
+    # Old downloads
+    find ~/Downloads -type f -mtime +90
+
+    # Trash
+    du -sh ~/.Trash
+    ```
+    {{end}}
+
+    **Present cleanup plan:**
+    ```
+    Disk Cleanup Analysis
+    ═══════════════════════════════════════
+
+    Current disk usage:
+    Total: 250 GB
+    Used:  210 GB (84%) ⚠️
+    Free:   40 GB
+
+    Cleanup Opportunities:
+    ─────────────────────────────────────
+
+    ✓ Temporary files        2.5 GB
+      /tmp (1.8 GB)
+      ~/Library/Caches (700 MB)
+
+    ✓ Old logs               1.2 GB
+      /var/log/*.gz (800 MB)
+      ~/.npm/_logs (400 MB)
+
+    ✓ Package caches         8.5 GB
+      Homebrew cache (3.2 GB)
+      npm cache (2.1 GB)
+      Docker cache (3.2 GB)
+
+    ✓ Build artifacts       15.3 GB
+      node_modules (12.1 GB)
+      __pycache__ (1.2 GB)
+      target dirs (2.0 GB)
+
+    {{if eq .aggressive "true"}}
+    ○ Old downloads          5.8 GB
+    ○ Trash                  2.1 GB
+    {{end}}
+
+    Total space to free: 27.5 GB{{if eq .aggressive "true"}} + 7.9 GB (aggressive){{end}}
+    ```
+
+    {{if eq .dry_run "false"}}
+    **Execute cleanup:**
+    ```bash
+    echo "⚠️  Ready to delete files. Continue? (yes/no)"
+
+    # If yes:
+    # Clean temp files
+    find /tmp -type f -atime +7 -delete
+    rm -rf ~/Library/Caches/*
+
+    # Clean logs
+    find /var/log -name "*.log.*" -mtime +30 -delete
+    rm -rf ~/.npm/_logs/*
+
+    # Clean caches
+    brew cleanup -s
+    npm cache clean --force
+    docker system prune -af
+
+    # Remove old node_modules (optional, ask first)
+    find ~ -name "node_modules" -type d -mtime +90 -exec rm -rf {} +
+
+    {{if eq .aggressive "true"}}
+    # Aggressive cleanup
+    find ~/Downloads -type f -mtime +90 -delete
+    rm -rf ~/.Trash/*
+    {{end}}
+    ```
+
+    Show results:
+    ```
+    ✅ Cleanup Complete!
+
+    Space freed: 27.5 GB
+    New disk usage: 182.5 GB / 250 GB (73%)
+    Free space: 67.5 GB
+
+    Summary:
+    • Temp files: 2.5 GB deleted
+    • Old logs: 1.2 GB deleted
+    • Caches: 8.5 GB deleted
+    • Build artifacts: 15.3 GB deleted
+    ```
+    {{else}}
+    ```
+    💡 This is a DRY RUN - no files were deleted.
+
+    To execute cleanup:
+    scmd /disk-cleanup false false
+
+    Or clean specific categories manually:
+    brew cleanup -s
+    npm cache clean --force
+    docker system prune -af
+    ```
+    {{end}}
+
+model:
+  temperature: 0.3
+  max_tokens: 3000
+
+examples:
+  - scmd /disk-cleanup
+  - scmd /disk-cleanup false false
+  - scmd /disk-cleanup true false

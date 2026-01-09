@@ -13,23 +13,23 @@ type testBackend struct {
 	available bool
 }
 
-func (b *testBackend) Name() string                                      { return b.name }
-func (b *testBackend) Type() Type                                        { return TypeMock }
-func (b *testBackend) Initialize(_ context.Context) error                { return nil }
-func (b *testBackend) IsAvailable(_ context.Context) (bool, error)       { return b.available, nil }
-func (b *testBackend) Shutdown(_ context.Context) error                  { return nil }
+func (b *testBackend) Name() string                                { return b.name }
+func (b *testBackend) Type() Type                                  { return TypeMock }
+func (b *testBackend) Initialize(_ context.Context) error          { return nil }
+func (b *testBackend) IsAvailable(_ context.Context) (bool, error) { return b.available, nil }
+func (b *testBackend) Shutdown(_ context.Context) error            { return nil }
 func (b *testBackend) Complete(_ context.Context, _ *CompletionRequest) (*CompletionResponse, error) {
 	return &CompletionResponse{Content: "test"}, nil
 }
 func (b *testBackend) Stream(_ context.Context, _ *CompletionRequest) (<-chan StreamChunk, error) {
 	return nil, nil
 }
-func (b *testBackend) SupportsToolCalling() bool                           { return false }
+func (b *testBackend) SupportsToolCalling() bool { return false }
 func (b *testBackend) CompleteWithTools(_ context.Context, _ *ToolRequest) (*ToolResponse, error) {
 	return nil, nil
 }
-func (b *testBackend) ModelInfo() *ModelInfo        { return &ModelInfo{Name: "test"} }
-func (b *testBackend) EstimateTokens(_ string) int  { return 0 }
+func (b *testBackend) ModelInfo() *ModelInfo       { return &ModelInfo{Name: "test"} }
+func (b *testBackend) EstimateTokens(_ string) int { return 0 }
 
 func TestRegistry_Register(t *testing.T) {
 	r := NewRegistry()
