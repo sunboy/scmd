@@ -6,7 +6,7 @@ version: 2
 before:
   hooks:
     # Run tests before building
-    - go test -short ./...
+    - go test -race -coverprofile=coverage.out ./...
     # Ensure dependencies are up to date
     - go mod tidy
     # Generate shell completions

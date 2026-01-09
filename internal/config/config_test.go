@@ -25,9 +25,9 @@ func TestDefault(t *testing.T) {
 	cfg := Default()
 
 	assert.Equal(t, "1.0", cfg.Version)
-	assert.Equal(t, "local", cfg.Backends.Default)
+	assert.Equal(t, "llamacpp", cfg.Backends.Default)
 	assert.Equal(t, "qwen2.5-coder-1.5b", cfg.Backends.Local.Model)
-	assert.Equal(t, 8192, cfg.Backends.Local.ContextLength)
+	assert.Equal(t, 0, cfg.Backends.Local.ContextLength) // 0 = unlimited/model native
 	assert.True(t, cfg.UI.Streaming)
 	assert.True(t, cfg.UI.Colors)
 	assert.False(t, cfg.UI.Verbose)
@@ -37,7 +37,7 @@ func TestDefault(t *testing.T) {
 func TestConfig_GetString(t *testing.T) {
 	cfg := Default()
 
-	assert.Equal(t, "local", cfg.GetString("backends.default"))
+	assert.Equal(t, "llamacpp", cfg.GetString("backends.default"))
 	assert.Equal(t, "qwen2.5-coder-1.5b", cfg.GetString("backends.local.model"))
 	assert.Equal(t, "", cfg.GetString("nonexistent"))
 }
@@ -53,7 +53,7 @@ func TestConfig_GetBool(t *testing.T) {
 func TestConfig_GetInt(t *testing.T) {
 	cfg := Default()
 
-	assert.Equal(t, 8192, cfg.GetInt("backends.local.context_length"))
+	assert.Equal(t, 0, cfg.GetInt("backends.local.context_length")) // 0 = unlimited
 	assert.Equal(t, 0, cfg.GetInt("backends.local.gpu_layers"))
 	assert.Equal(t, 0, cfg.GetInt("nonexistent"))
 }
@@ -65,7 +65,7 @@ func TestLoad(t *testing.T) {
 	assert.NotNil(t, cfg)
 
 	// Should have default values
-	assert.Equal(t, "local", cfg.Backends.Default)
+	assert.Equal(t, "llamacpp", cfg.Backends.Default)
 }
 
 func TestEnsureDataDir(t *testing.T) {

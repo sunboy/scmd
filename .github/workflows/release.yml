@@ -27,10 +27,25 @@ jobs:
           cache: true
 
       - name: Run tests
-        run: make test-short
+        run: make test
 
       - name: Run linters
         run: make lint
+
+      - name: Build binary
+        run: make build
+
+      - name: Smoke test - version
+        run: ./bin/scmd version
+
+      - name: Smoke test - help
+        run: ./bin/scmd --help
+
+      - name: Smoke test - backends
+        run: ./bin/scmd backends
+
+      - name: Smoke test - config
+        run: ./bin/scmd config
 
   goreleaser:
     name: Release with GoReleaser
