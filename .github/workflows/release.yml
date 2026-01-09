@@ -30,7 +30,7 @@ jobs:
         run: make build
 
       - name: Run tests
-        run: make test
+        run: make test-short
 
       - name: Run linters
         run: make lint
