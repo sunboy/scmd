@@ -125,9 +125,6 @@ nfpms:
       - apk
     bindir: /usr/bin
     contents:
-      # Binary
-      - src: ./scmd
-        dst: /usr/bin/scmd
       # Shell completions
       - src: ./completions/scmd.bash
         dst: /usr/share/bash-completion/completions/scmd
@@ -194,7 +191,7 @@ docker_manifests:
 # GitHub release
 release:
   github:
-    owner: scmd
+    owner: sunboy
     name: scmd
   draft: false
   prerelease: auto
