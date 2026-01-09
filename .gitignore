@@ -68,3 +68,4 @@ scmd.lock
 
 # Claude Code configuration (user-specific)
 .claude/
+npm/.npmrc
