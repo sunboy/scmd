@@ -34,7 +34,7 @@ go.work.sum
 # .vscode/
 
 # Distribution artifacts
-completions/
+# Note: completions/ is committed to repo for GoReleaser packaging
 npm/bin/
 npm/tmp/
 

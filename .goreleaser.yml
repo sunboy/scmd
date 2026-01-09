@@ -9,15 +9,7 @@ before:
     - sh -c 'go test -short -race $(go list ./... | grep -v "/tests/e2e")'
     # Ensure dependencies are up to date
     - go mod tidy
-    # Build temporary binary for generating completions
-    - go build -o /tmp/scmd-temp ./cmd/scmd
-    # Generate shell completions using temp binary
-    - mkdir -p completions
-    - /tmp/scmd-temp completion bash > completions/scmd.bash
-    - /tmp/scmd-temp completion zsh > completions/scmd.zsh
-    - /tmp/scmd-temp completion fish > completions/scmd.fish
-    # Clean up temp binary
-    - rm -f /tmp/scmd-temp
+    # Note: Shell completions are pre-generated and committed to completions/
 
 builds:
   - id: scmd
