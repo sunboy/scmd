@@ -35,6 +35,8 @@ builds:
     ignore:
       - goos: windows
         goarch: arm64
+      - goos: linux
+        goarch: arm64  # No llama-server binary available for linux-arm64
 
 archives:
   - id: scmd
