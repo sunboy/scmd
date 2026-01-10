@@ -111,7 +111,13 @@ jobs:
 
       - name: Publish to npm
         working-directory: npm
-        run: npm publish --access public
+        run: |
+          # Check if this version is already published
+          if npm view scmd-cli@${{ steps.version.outputs.VERSION }} version 2>/dev/null; then
+            echo "Version ${{ steps.version.outputs.VERSION }} already published to npm, skipping"
+            exit 0
+          fi
+          npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
