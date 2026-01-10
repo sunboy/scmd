@@ -193,7 +193,7 @@ func runHistoryList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Println("Recent Conversations:\n")
+	fmt.Println("Recent Conversations:")
 	for i, conv := range conversations {
 		// Display title or truncated first message
 		title := conv.Title

@@ -115,7 +115,7 @@ func runTemplateList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Println("Available Templates:\n")
+	fmt.Println("Available Templates:")
 	for _, t := range tpls {
 		fmt.Printf("  %s (v%s)\n", t.Name, t.Version)
 		fmt.Printf("    %s\n", t.Description)

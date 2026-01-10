@@ -87,7 +87,7 @@ func (s *Session) Run(ctx context.Context) error {
 	fmt.Println("scmd interactive mode")
 	fmt.Printf("Conversation: %s\n", s.conversationID[:8])
 	fmt.Printf("Model: %s\n", s.model)
-	fmt.Println("\nType your message and press Enter. Use /help for commands, Ctrl+D to exit.\n")
+	fmt.Println("\nType your message and press Enter. Use /help for commands, Ctrl+D to exit.")
 
 	// If resuming, show message count
 	if len(s.messages) > 0 {
@@ -190,7 +190,7 @@ func (s *Session) handleCommand(cmd string) error {
 }
 
 func (s *Session) showHelp() {
-	fmt.Println(`
+	fmt.Print(`
 Available Commands:
   /help      Show this help message
   /clear     Clear current context (keeps history)
