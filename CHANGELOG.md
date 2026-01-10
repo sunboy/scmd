@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-01-10
+
+### Added
+- **Interactive Conversation Mode**: Multi-turn AI conversations with SQLite persistence
+  - New `scmd chat` command for interactive REPL sessions
+  - Conversation history management with `scmd history` commands (list, show, search, delete, clear)
+  - Context retention across sessions with automatic saving
+  - In-session commands: /help, /clear, /info, /save, /export, /model, /exit
+- **Beautiful Markdown Output**: Syntax-highlighted code and formatted text
+  - Chroma v2 integration for syntax highlighting (40+ languages)
+  - Glamour integration for markdown rendering
+  - Automatic theme detection (dark/light/auto)
+  - Customizable color schemes
+- **Template/Pattern System**: Reusable, customizable prompt templates
+  - 6 built-in professional templates (security-review, performance, api-design, testing, documentation, beginner-explain)
+  - YAML-based template format with variable substitution
+  - Template management commands: list, show, create, delete, search, import, export
+  - Template integration with existing commands via --template flag
+- Conversation export to Markdown
+- Token usage tracking
+- Model switching within chat sessions
+
+### Changed
+- Updated README with comprehensive documentation for new features
+- Enhanced `/explain` and `/review` commands to support templates
+- Improved output formatting with color and styling
+- Added 7 new dependencies for UI/chat features
+
+### Dependencies
+- github.com/charmbracelet/glamour v0.6.0 (markdown rendering)
+- github.com/charmbracelet/lipgloss v0.9.1 (terminal styling)
+- github.com/alecthomas/chroma/v2 v2.12.0 (syntax highlighting)
+- github.com/muesli/termenv v0.15.2 (color support)
+- github.com/briandowns/spinner v1.23.0 (progress indicators)
+- github.com/mattn/go-sqlite3 v1.14.18 (conversation persistence)
+- github.com/google/uuid v1.5.0 (conversation IDs)
+
+## [0.3.1] - 2026-01-09
+
+### Fixed
+- Critical bug fixes based on dogfooding feedback
+
+## [0.3.0] - 2026-01-09
+
 ### Added
 - GoReleaser configuration for automated multi-platform releases
 - Homebrew tap support for easy macOS/Linux installation
@@ -24,6 +68,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Updated Makefile with release and distribution targets
 - Enhanced documentation with multiple installation methods
+
+### Fixed
+- CLI flag parsing and llama-server bundling
+- llama-server download script to use latest release
+- llama-server bundling for goreleaser
+- Use bash instead of sh for download script in goreleaser
 
 ## [0.1.0] - 2025-01-06
 
@@ -78,5 +128,9 @@ To create a new release:
 
 ## Version History
 
-[Unreleased]: https://github.com/scmd/scmd/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/scmd/scmd/releases/tag/v0.1.0
+[Unreleased]: https://github.com/sunboy/scmd/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/sunboy/scmd/releases/tag/v0.4.0
+[0.3.1]: https://github.com/sunboy/scmd/releases/tag/v0.3.1
+[0.3.0]: https://github.com/sunboy/scmd/releases/tag/v0.3.0
+[0.2.1]: https://github.com/sunboy/scmd/releases/tag/v0.2.1
+[0.1.0]: https://github.com/sunboy/scmd/releases/tag/v0.1.0
